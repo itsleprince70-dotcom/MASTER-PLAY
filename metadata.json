@@ -1,0 +1,6 @@
+{
+  "name": "MASTER PLAY - Kèkè Challenge",
+  "description": "Platfòm ofisyèl MASTER PLAY ak Kèkè Challenge pou jwèt, konpetisyon, piblikasyon ak tranzaksyon NatCash an Ayiti.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

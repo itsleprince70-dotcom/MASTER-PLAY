@@ -1,0 +1,1858 @@
+{
+  "adminPin": "prince509",
+  "users": [
+    {
+      "id": "usr_demo_1",
+      "fullName": "Jean William",
+      "phoneNumber": "+509 40128456",
+      "pinHash": "df30fa8b4f378a040a72bdb3c0620a6fcf25fd8edb66f5be77faf7fec357a03c",
+      "profilePhoto": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+      "balance": 150,
+      "reservedBalance": 0,
+      "level": 3,
+      "createdAt": "2025-06-15T10:00:00Z",
+      "stars": 3,
+      "followersCount": 45,
+      "followingIds": [
+        "usr_demo_2"
+      ],
+      "followerIds": [],
+      "giftsReceivedCount": 0,
+      "giftsReceivedValue": 0,
+      "matchesWon": 0,
+      "matchesPlayed": 0,
+      "votesReceived": 0,
+      "levelHistory": [
+        {
+          "level": 3,
+          "date": "2025-06-15T10:00:00Z",
+          "reason": "Kreyasyon kont"
+        }
+      ]
+    },
+    {
+      "id": "usr_demo_2",
+      "fullName": "Marie Carmelle",
+      "phoneNumber": "+509 37889922",
+      "pinHash": "df30fa8b4f378a040a72bdb3c0620a6fcf25fd8edb66f5be77faf7fec357a03c",
+      "profilePhoto": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
+      "balance": 460,
+      "reservedBalance": 0,
+      "level": 2,
+      "createdAt": "2025-06-20T14:30:00Z",
+      "stars": 2,
+      "followersCount": 50,
+      "followingIds": [],
+      "followerIds": [
+        "usr_demo_1"
+      ],
+      "giftsReceivedCount": 1,
+      "giftsReceivedValue": 100,
+      "matchesWon": 0,
+      "matchesPlayed": 0,
+      "votesReceived": 6,
+      "levelHistory": [
+        {
+          "level": 2,
+          "date": "2025-06-20T14:30:00Z",
+          "reason": "Kreyasyon kont"
+        }
+      ]
+    },
+    {
+      "id": "usr_1793048053170_ueyj",
+      "fullName": "Ti Gason Tès",
+      "phoneNumber": "+509 3899 9999",
+      "pinHash": "e9ea80d32d6fb7af0cfe90d47528c9ec97c9f2293fd8ddbd5140ab335737465a",
+      "profilePhoto": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+      "balance": 100,
+      "reservedBalance": 0,
+      "level": 1,
+      "createdAt": "2026-10-26T20:54:13.170Z",
+      "stars": 1,
+      "followersCount": 20,
+      "followingIds": [],
+      "followerIds": [],
+      "giftsReceivedCount": 0,
+      "giftsReceivedValue": 0,
+      "matchesWon": 0,
+      "matchesPlayed": 0,
+      "votesReceived": 0,
+      "levelHistory": [
+        {
+          "level": 1,
+          "date": "2026-10-26T20:54:13.170Z",
+          "reason": "Kreyasyon kont"
+        }
+      ]
+    },
+    {
+      "id": "usr_1793048059505_2h65",
+      "fullName": "Ti Mari Tès",
+      "phoneNumber": "+509 3888 7777",
+      "pinHash": "55aa97cb588ba47cae626ed13beb9d956a2a1fb806f2ae385ee686c56b5d7673",
+      "profilePhoto": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+      "balance": 50,
+      "welcomeBonusAwarded": true,
+      "reservedBalance": 0,
+      "level": 1,
+      "createdAt": "2026-10-26T20:54:19.505Z",
+      "stars": 1,
+      "followersCount": 24,
+      "followingIds": [],
+      "followerIds": [],
+      "giftsReceivedCount": 0,
+      "giftsReceivedValue": 0,
+      "matchesWon": 0,
+      "matchesPlayed": 0,
+      "votesReceived": 0,
+      "levelHistory": [
+        {
+          "level": 1,
+          "date": "2026-10-26T20:54:19.505Z",
+          "reason": "Kreyasyon kont"
+        }
+      ]
+    }
+  ],
+  "competitions": [
+    {
+      "id": "comp_1",
+      "name": "MASTER COUP",
+      "badge": "👑 MASTER",
+      "tagline": "Yon konpetisyon ki mande estrateji, sans gwo patisipasyon. Tounen pi bon nan MASTER COUP !",
+      "description": "Pi gwo tounwa sezon an ak pi gwo prim NatCash. Jwe ak pi bon stratèj yo.",
+      "rules": "1. Chak jwè gen 3 manch.\n2. Ranje nòt ki pi wo a ap kalifye pou final la.\n3. Peman fèt dirèkteman sou balans MASTER PLAY ou.\n4. Pa gen ranbousman si ou rate lè a.",
+      "entryFee": 1500,
+      "startDate": "12 Jiyè 2025 - 8:00 PM",
+      "deadline": "20 Jiyè 2025 - 6:00 PM",
+      "maxParticipants": 100,
+      "registeredUserIds": [
+        "usr_demo_1",
+        "usr_demo_2",
+        "usr_p3",
+        "usr_p4",
+        "usr_p5",
+        "usr_p6",
+        "usr_p7",
+        "usr_p8",
+        "usr_p9",
+        "usr_p10"
+      ],
+      "prizes": {
+        "first": "75,000 HT + Kouròn MASTER",
+        "second": "35,000 HT",
+        "third": "15,000 HT"
+      },
+      "status": "finished",
+      "authorizedGameIds": [
+        "game_memory",
+        "game_football",
+        "game_basket",
+        "game_bubble",
+        "game_xo",
+        "game_block"
+      ],
+      "scheduleType": "weekly_7days",
+      "currentDay": "Dimanch",
+      "scores": [
+        {
+          "userId": "usr_demo_1",
+          "fullName": "Jean William",
+          "phoneNumber": "+509 40128456",
+          "profilePhoto": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+          "scoresByGame": {
+            "game_football": 950,
+            "game_basket": 950,
+            "game_penalty": 950
+          },
+          "totalScore": 2850,
+          "dailyScores": {
+            "lendi": 850,
+            "madi": 700,
+            "mekredi": 650,
+            "jedi": 650
+          },
+          "registrationDate": "2025-06-21T10:00:00Z",
+          "rank": 1,
+          "qualifiedTop8": true,
+          "eliminated": false,
+          "level": 6,
+          "stars": 5,
+          "followers": 52,
+          "matchesWon": 2,
+          "votesCount": 24,
+          "giftsCount": 2,
+          "giftsValue": 100
+        },
+        {
+          "userId": "usr_demo_2",
+          "fullName": "Marie Carmelle",
+          "phoneNumber": "+509 37889922",
+          "profilePhoto": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
+          "scoresByGame": {
+            "game_football": 906,
+            "game_basket": 906,
+            "game_penalty": 906
+          },
+          "totalScore": 2720,
+          "dailyScores": {
+            "lendi": 800,
+            "madi": 720,
+            "mekredi": 600,
+            "jedi": 600
+          },
+          "registrationDate": "2025-06-21T10:00:00Z",
+          "rank": 2,
+          "qualifiedTop8": true,
+          "eliminated": false,
+          "level": 6,
+          "stars": 5,
+          "followers": 26,
+          "matchesWon": 2,
+          "votesCount": 25,
+          "giftsCount": 2,
+          "giftsValue": 100
+        },
+        {
+          "userId": "usr_p3",
+          "fullName": "Pierre Ronald",
+          "phoneNumber": "+509 44112233",
+          "profilePhoto": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+          "scoresByGame": {
+            "game_football": 846,
+            "game_basket": 846,
+            "game_penalty": 846
+          },
+          "totalScore": 2540,
+          "dailyScores": {
+            "lendi": 750,
+            "madi": 690,
+            "mekredi": 550,
+            "jedi": 550
+          },
+          "registrationDate": "2025-06-21T10:00:00Z",
+          "rank": 3,
+          "qualifiedTop8": true,
+          "eliminated": false,
+          "level": 6,
+          "stars": 5,
+          "followers": 15,
+          "matchesWon": 2,
+          "votesCount": 6,
+          "giftsCount": 7,
+          "giftsValue": 350
+        },
+        {
+          "userId": "usr_p4",
+          "fullName": "Stanley Cadet",
+          "phoneNumber": "+509 33221100",
+          "profilePhoto": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+          "scoresByGame": {
+            "game_football": 826,
+            "game_basket": 826,
+            "game_penalty": 826
+          },
+          "totalScore": 2480,
+          "dailyScores": {
+            "lendi": 710,
+            "madi": 650,
+            "mekredi": 560,
+            "jedi": 560
+          },
+          "registrationDate": "2025-06-21T10:00:00Z",
+          "rank": 4,
+          "qualifiedTop8": true,
+          "eliminated": false,
+          "level": 5,
+          "stars": 5,
+          "followers": 48,
+          "matchesWon": 2,
+          "votesCount": 14,
+          "giftsCount": 7,
+          "giftsValue": 350
+        },
+        {
+          "userId": "usr_p5",
+          "fullName": "Vanessa Joseph",
+          "phoneNumber": "+509 46554433",
+          "profilePhoto": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
+          "scoresByGame": {
+            "game_football": 796,
+            "game_basket": 796,
+            "game_penalty": 796
+          },
+          "totalScore": 2390,
+          "dailyScores": {
+            "lendi": 680,
+            "madi": 620,
+            "mekredi": 540,
+            "jedi": 550
+          },
+          "registrationDate": "2025-06-21T10:00:00Z",
+          "rank": 5,
+          "qualifiedTop8": true,
+          "eliminated": false,
+          "level": 5,
+          "stars": 5,
+          "followers": 31,
+          "matchesWon": 1,
+          "votesCount": 36,
+          "giftsCount": 4,
+          "giftsValue": 200
+        },
+        {
+          "userId": "usr_p6",
+          "fullName": "Mackenson Paul",
+          "phoneNumber": "+509 38998877",
+          "profilePhoto": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
+          "scoresByGame": {
+            "game_football": 753,
+            "game_basket": 753,
+            "game_penalty": 753
+          },
+          "totalScore": 2260,
+          "dailyScores": {
+            "lendi": 640,
+            "madi": 600,
+            "mekredi": 510,
+            "jedi": 510
+          },
+          "registrationDate": "2025-06-21T10:00:00Z",
+          "rank": 6,
+          "qualifiedTop8": true,
+          "eliminated": false,
+          "level": 5,
+          "stars": 5,
+          "followers": 5,
+          "matchesWon": 1,
+          "votesCount": 9,
+          "giftsCount": 4,
+          "giftsValue": 200
+        },
+        {
+          "userId": "usr_p7",
+          "fullName": "Frantz Desir",
+          "phoneNumber": "+509 41223344",
+          "profilePhoto": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
+          "scoresByGame": {
+            "game_football": 716,
+            "game_basket": 716,
+            "game_penalty": 716
+          },
+          "totalScore": 2150,
+          "dailyScores": {
+            "lendi": 600,
+            "madi": 580,
+            "mekredi": 490,
+            "jedi": 480
+          },
+          "registrationDate": "2025-06-21T10:00:00Z",
+          "rank": 7,
+          "qualifiedTop8": true,
+          "eliminated": false,
+          "level": 5,
+          "stars": 5,
+          "followers": 5,
+          "matchesWon": 1,
+          "votesCount": 37,
+          "giftsCount": 8,
+          "giftsValue": 400
+        },
+        {
+          "userId": "usr_p8",
+          "fullName": "Claudette Louis",
+          "phoneNumber": "+509 39445566",
+          "profilePhoto": "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80",
+          "scoresByGame": {
+            "game_football": 680,
+            "game_basket": 680,
+            "game_penalty": 680
+          },
+          "totalScore": 2040,
+          "dailyScores": {
+            "lendi": 590,
+            "madi": 550,
+            "mekredi": 450,
+            "jedi": 450
+          },
+          "registrationDate": "2025-06-21T10:00:00Z",
+          "rank": 8,
+          "qualifiedTop8": true,
+          "eliminated": false,
+          "level": 5,
+          "stars": 5,
+          "followers": 54,
+          "matchesWon": 1,
+          "votesCount": 19,
+          "giftsCount": 5,
+          "giftsValue": 250
+        },
+        {
+          "userId": "usr_p9",
+          "fullName": "Kerby Saint-Vil",
+          "phoneNumber": "+509 42887766",
+          "profilePhoto": "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
+          "scoresByGame": {
+            "game_football": 630,
+            "game_basket": 630,
+            "game_penalty": 630
+          },
+          "totalScore": 1890,
+          "dailyScores": {
+            "lendi": 520,
+            "madi": 500,
+            "mekredi": 440,
+            "jedi": 430
+          },
+          "registrationDate": "2025-06-21T10:00:00Z",
+          "rank": 9,
+          "qualifiedTop8": false,
+          "eliminated": true,
+          "level": 4,
+          "stars": 4,
+          "followers": 14,
+          "matchesWon": 0,
+          "votesCount": 16,
+          "giftsCount": 1,
+          "giftsValue": 50
+        },
+        {
+          "userId": "usr_p10",
+          "fullName": "Nathalie Bruno",
+          "phoneNumber": "+509 36778899",
+          "profilePhoto": "https://images.unsplash.com/photo-1534751516642-a171ed29c0e5?w=150&auto=format&fit=crop&q=80",
+          "scoresByGame": {
+            "game_football": 583,
+            "game_basket": 583,
+            "game_penalty": 583
+          },
+          "totalScore": 1750,
+          "dailyScores": {
+            "lendi": 490,
+            "madi": 470,
+            "mekredi": 400,
+            "jedi": 390
+          },
+          "registrationDate": "2025-06-21T10:00:00Z",
+          "rank": 10,
+          "qualifiedTop8": false,
+          "eliminated": true,
+          "level": 4,
+          "stars": 4,
+          "followers": 27,
+          "matchesWon": 0,
+          "votesCount": 9,
+          "giftsCount": 5,
+          "giftsValue": 250
+        }
+      ],
+      "matches": [
+        {
+          "id": "match_comp_1_top8_1",
+          "round": "top8",
+          "matchNumber": 1,
+          "player1": {
+            "userId": "usr_demo_1",
+            "fullName": "Jean William",
+            "profilePhoto": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+            "seedRank": 1,
+            "score": 3,
+            "level": 3,
+            "stars": 3,
+            "followers": 45,
+            "points": 2400,
+            "votesCount": 12,
+            "giftsCount": 3
+          },
+          "player2": {
+            "userId": "usr_demo_2",
+            "fullName": "Marie Carmelle",
+            "profilePhoto": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
+            "seedRank": 2,
+            "score": 1,
+            "level": 2,
+            "stars": 2,
+            "followers": 38,
+            "points": 2150,
+            "votesCount": 9,
+            "giftsCount": 2
+          },
+          "gameId": "game_football",
+          "gameTitle": "Football Challenge",
+          "date": "Vandredi - Match Eliminatwa",
+          "status": "Fini",
+          "winnerId": "usr_demo_1",
+          "verifiedBy": "Prince509",
+          "verifiedAt": "2026-10-22T15:50:56.828Z",
+          "votingEnabled": true,
+          "votePrice": 15,
+          "votes1": 12,
+          "votes2": 9,
+          "gifts1": 3,
+          "gifts2": 2
+        },
+        {
+          "id": "match_comp_1_top8_2",
+          "round": "top8",
+          "matchNumber": 2,
+          "player1": {
+            "userId": "usr_p3",
+            "fullName": "Pierre Ronald",
+            "profilePhoto": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+            "seedRank": 3,
+            "score": 2,
+            "level": 3,
+            "stars": 3,
+            "followers": 45,
+            "points": 2400,
+            "votesCount": 12,
+            "giftsCount": 3
+          },
+          "player2": {
+            "userId": "usr_p4",
+            "fullName": "Stanley Cadet",
+            "profilePhoto": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+            "seedRank": 4,
+            "score": 0,
+            "level": 2,
+            "stars": 2,
+            "followers": 38,
+            "points": 2150,
+            "votesCount": 9,
+            "giftsCount": 2
+          },
+          "gameId": "game_football",
+          "gameTitle": "Football Challenge",
+          "date": "Vandredi - Match Eliminatwa",
+          "status": "Fini",
+          "winnerId": "usr_p3",
+          "verifiedBy": "Prince509",
+          "verifiedAt": "2026-10-22T15:50:56.842Z",
+          "votingEnabled": true,
+          "votePrice": 15,
+          "votes1": 12,
+          "votes2": 9,
+          "gifts1": 3,
+          "gifts2": 2
+        },
+        {
+          "id": "match_comp_1_top8_3",
+          "round": "top8",
+          "matchNumber": 3,
+          "player1": {
+            "userId": "usr_p5",
+            "fullName": "Vanessa Joseph",
+            "profilePhoto": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
+            "seedRank": 5,
+            "score": 4,
+            "level": 3,
+            "stars": 3,
+            "followers": 45,
+            "points": 2400,
+            "votesCount": 12,
+            "giftsCount": 3
+          },
+          "player2": {
+            "userId": "usr_p6",
+            "fullName": "Mackenson Paul",
+            "profilePhoto": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
+            "seedRank": 6,
+            "score": 2,
+            "level": 2,
+            "stars": 2,
+            "followers": 38,
+            "points": 2150,
+            "votesCount": 9,
+            "giftsCount": 2
+          },
+          "gameId": "game_football",
+          "gameTitle": "Football Challenge",
+          "date": "Vandredi - Match Eliminatwa",
+          "status": "Fini",
+          "winnerId": "usr_p5",
+          "verifiedBy": "Prince509",
+          "verifiedAt": "2026-10-22T15:50:56.856Z",
+          "votingEnabled": true,
+          "votePrice": 15,
+          "votes1": 12,
+          "votes2": 9,
+          "gifts1": 3,
+          "gifts2": 2
+        },
+        {
+          "id": "match_comp_1_top8_4",
+          "round": "top8",
+          "matchNumber": 4,
+          "player1": {
+            "userId": "usr_p7",
+            "fullName": "Frantz Desir",
+            "profilePhoto": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
+            "seedRank": 7,
+            "score": 1,
+            "level": 3,
+            "stars": 3,
+            "followers": 45,
+            "points": 2400,
+            "votesCount": 12,
+            "giftsCount": 3
+          },
+          "player2": {
+            "userId": "usr_p8",
+            "fullName": "Claudette Louis",
+            "profilePhoto": "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80",
+            "seedRank": 8,
+            "score": 3,
+            "level": 2,
+            "stars": 2,
+            "followers": 38,
+            "points": 2150,
+            "votesCount": 9,
+            "giftsCount": 2
+          },
+          "gameId": "game_football",
+          "gameTitle": "Football Challenge",
+          "date": "Vandredi - Match Eliminatwa",
+          "status": "Fini",
+          "winnerId": "usr_p8",
+          "verifiedBy": "Prince509",
+          "verifiedAt": "2026-10-22T15:50:56.869Z",
+          "votingEnabled": true,
+          "votePrice": 15,
+          "votes1": 12,
+          "votes2": 9,
+          "gifts1": 3,
+          "gifts2": 2
+        },
+        {
+          "id": "match_comp_1_demi_1",
+          "round": "demi",
+          "matchNumber": 1,
+          "player1": {
+            "userId": "usr_demo_1",
+            "fullName": "Jean William",
+            "profilePhoto": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+            "seedRank": 1,
+            "score": 3,
+            "level": 3,
+            "stars": 3,
+            "followers": 45,
+            "points": 2400,
+            "votesCount": 12,
+            "giftsCount": 3
+          },
+          "player2": {
+            "userId": "usr_p3",
+            "fullName": "Pierre Ronald",
+            "profilePhoto": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+            "seedRank": 3,
+            "score": 1,
+            "level": 2,
+            "stars": 2,
+            "followers": 38,
+            "points": 2150,
+            "votesCount": 9,
+            "giftsCount": 2
+          },
+          "gameId": "game_football",
+          "gameTitle": "Football Challenge",
+          "date": "Samdi - Demi-Final 1",
+          "status": "Fini",
+          "winnerId": "usr_demo_1",
+          "verifiedBy": "Prince509",
+          "verifiedAt": "2026-10-22T15:51:06.621Z",
+          "votingEnabled": true,
+          "votePrice": 15,
+          "votes1": 12,
+          "votes2": 9,
+          "gifts1": 3,
+          "gifts2": 2
+        },
+        {
+          "id": "match_comp_1_demi_2",
+          "round": "demi",
+          "matchNumber": 2,
+          "player1": {
+            "userId": "usr_p5",
+            "fullName": "Vanessa Joseph",
+            "profilePhoto": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
+            "seedRank": 5,
+            "score": 2,
+            "level": 3,
+            "stars": 3,
+            "followers": 45,
+            "points": 2400,
+            "votesCount": 12,
+            "giftsCount": 3
+          },
+          "player2": {
+            "userId": "usr_p8",
+            "fullName": "Claudette Louis",
+            "profilePhoto": "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80",
+            "seedRank": 8,
+            "score": 4,
+            "level": 2,
+            "stars": 2,
+            "followers": 38,
+            "points": 2150,
+            "votesCount": 9,
+            "giftsCount": 2
+          },
+          "gameId": "game_football",
+          "gameTitle": "Football Challenge",
+          "date": "Samdi - Demi-Final 2",
+          "status": "Fini",
+          "winnerId": "usr_p8",
+          "verifiedBy": "Prince509",
+          "verifiedAt": "2026-10-22T15:51:06.634Z",
+          "votingEnabled": true,
+          "votePrice": 15,
+          "votes1": 12,
+          "votes2": 9,
+          "gifts1": 3,
+          "gifts2": 2
+        },
+        {
+          "id": "match_comp_1_final",
+          "round": "final",
+          "matchNumber": 1,
+          "player1": {
+            "userId": "usr_demo_1",
+            "fullName": "Jean William",
+            "profilePhoto": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+            "seedRank": 1,
+            "score": 5,
+            "level": 3,
+            "stars": 3,
+            "followers": 45,
+            "points": 2400,
+            "votesCount": 12,
+            "giftsCount": 3
+          },
+          "player2": {
+            "userId": "usr_p8",
+            "fullName": "Claudette Louis",
+            "profilePhoto": "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80",
+            "seedRank": 8,
+            "score": 3,
+            "level": 2,
+            "stars": 2,
+            "followers": 38,
+            "points": 2150,
+            "votesCount": 9,
+            "giftsCount": 2
+          },
+          "gameId": "game_basket",
+          "gameTitle": "Basket Challenge",
+          "date": "Dimanch - Gran Final",
+          "status": "Fini",
+          "winnerId": "usr_demo_1",
+          "verifiedBy": "Prince509",
+          "verifiedAt": "2026-10-22T15:51:10.910Z",
+          "votingEnabled": true,
+          "votePrice": 15,
+          "votes1": 12,
+          "votes2": 9,
+          "gifts1": 3,
+          "gifts2": 2
+        }
+      ],
+      "top8QualifiedUserIds": [
+        "usr_demo_1",
+        "usr_demo_2",
+        "usr_p3",
+        "usr_p4",
+        "usr_p5",
+        "usr_p6",
+        "usr_p7",
+        "usr_p8"
+      ],
+      "tiebreakerRule": "pi_wo_pwen_match",
+      "champion": {
+        "userId": "usr_demo_1",
+        "fullName": "Jean William",
+        "profilePhoto": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+        "title": "CHANPYON OFISYÈL MASTER COUP",
+        "prize": "75,000 HT + Kouròn MASTER",
+        "finalScore": "5 - 3",
+        "wonAt": "2026-10-22T15:51:10.910Z"
+      },
+      "runnerUp": {
+        "userId": "usr_p8",
+        "fullName": "Claudette Louis",
+        "profilePhoto": "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80",
+        "prize": "35,000 HT"
+      },
+      "votingEnabled": true,
+      "votePrice": 15,
+      "qualificationCount": 8
+    },
+    {
+      "id": "comp_2",
+      "name": "COUP DU ROI",
+      "badge": "⚡ ROI",
+      "tagline": "Konpetisyon vitès ak reflèks pou jwenn vre wa a !",
+      "description": "Yon batay titanesk sou jwèt ritm ak reflèks Kèkè Challenge.",
+      "rules": "1. Nòt ki pi wo sou Fresco Run ak Piano Beat.\n2. Tout patisipan dwe verifye kont yo anvan konpetisyon an.\n3. Rezilta ofisyèl yo pibliye 1h apre fen an.",
+      "entryFee": 1000,
+      "startDate": "15 Jiyè 2025 - 7:00 PM",
+      "deadline": "22 Jiyè 2025 - 6:00 PM",
+      "maxParticipants": 80,
+      "registeredUserIds": [
+        "usr_demo_1"
+      ],
+      "prizes": {
+        "first": "50,000 HT",
+        "second": "25,000 HT",
+        "third": "10,000 HT"
+      },
+      "status": "active",
+      "authorizedGameIds": [
+        "game_jeudemots",
+        "game_tubemaster",
+        "game_dames"
+      ],
+      "scheduleType": "weekly_7days",
+      "currentDay": "Lendi",
+      "scores": [
+        {
+          "userId": "usr_demo_1",
+          "fullName": "Jean William",
+          "phoneNumber": "+509 40128456",
+          "profilePhoto": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+          "scoresByGame": {
+            "game_football": 600,
+            "game_jeudemots": 150
+          },
+          "totalScore": 750,
+          "dailyScores": {
+            "lendi": 750,
+            "madi": 0,
+            "mekredi": 0,
+            "jedi": 0
+          },
+          "registrationDate": "2026-10-22T15:51:28.048Z",
+          "rank": 1,
+          "level": 2,
+          "stars": 2,
+          "followers": 46,
+          "matchesWon": 2,
+          "votesCount": 32,
+          "giftsCount": 9,
+          "giftsValue": 450,
+          "completedLevelsCount": 1,
+          "gamesPlayedCount": 2
+        }
+      ],
+      "matches": [],
+      "top8QualifiedUserIds": [],
+      "tiebreakerRule": "pi_wo_pwen_match",
+      "votingEnabled": true,
+      "votePrice": 15,
+      "qualificationCount": 8
+    },
+    {
+      "id": "comp_3",
+      "name": "PRINCE ROYAL",
+      "badge": "⚜️ PRINCE",
+      "tagline": "Defi elit la pou tout nouvo talan k ap monte yo !",
+      "description": "Konpetisyon eksklizif pou jwè ki vle demontre talan yo e fè lajan rapid.",
+      "rules": "1. Enskripsyon louvri pou tout nivo.\n2. 5 jwè ki pi bon yo resevwa prim espesyal.\n3. Transfè prim yo fèt otomatikman sou NatCash.",
+      "entryFee": 750,
+      "startDate": "20 Jiyè 2025 - 8:00 PM",
+      "deadline": "28 Jiyè 2025 - 6:00 PM",
+      "maxParticipants": 120,
+      "registeredUserIds": [],
+      "prizes": {
+        "first": "35,000 HT",
+        "second": "18,000 HT",
+        "third": "8,000 HT"
+      },
+      "status": "active",
+      "authorizedGameIds": [
+        "game_memory",
+        "game_football",
+        "game_basket",
+        "game_bubble",
+        "game_xo",
+        "game_block"
+      ],
+      "scheduleType": "weekly_7days",
+      "currentDay": "Lendi",
+      "scores": [],
+      "matches": [],
+      "top8QualifiedUserIds": [],
+      "tiebreakerRule": "pi_wo_pwen_match",
+      "votingEnabled": true,
+      "votePrice": 15,
+      "qualificationCount": 8
+    }
+  ],
+  "posts": [
+    {
+      "id": "post_1792684276231",
+      "title": "👑 Nouvo Chanpyon MASTER COUP Kourone !",
+      "description": "Felisitasyon ak Jean William ki se gran chanpyon ofisyèl la avèk 75,000 HT ak kouròn MASTER la !",
+      "mediaType": "image",
+      "mediaUrl": "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=800",
+      "mediaUrls": [
+        "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=800"
+      ],
+      "videoUrl": "",
+      "tiktokUrl": "https://tiktok.com/@kekechallenge",
+      "author": "Administratè Prince509",
+      "likes": [],
+      "comments": [],
+      "createdAt": "2026-10-22T15:51:16.231Z",
+      "pinned": true
+    },
+    {
+      "id": "post_1",
+      "title": "Nou gen yon nouvo MASTER COUP ! Prepare tèt ou !",
+      "description": "Gwo konpetisyon mwa sa a louvri ofisyèlman. Tout plas yo ap ranpli rapid. Vizite TikTok nou pou gade videyo demonstrasyon an !",
+      "mediaType": "image",
+      "mediaUrl": "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=800&auto=format&fit=crop&q=80",
+      "tiktokUrl": "https://tiktok.com/@kekechallenge",
+      "likes": [
+        "usr_demo_1",
+        "usr_demo_2"
+      ],
+      "comments": [
+        {
+          "id": "c_1",
+          "userId": "usr_demo_1",
+          "userName": "Jean William",
+          "text": "Mwen deja enskri ! Ane sa kouròn nan se pou mwen 🔥",
+          "createdAt": "2025-06-25T14:10:00Z"
+        }
+      ],
+      "createdAt": "2025-06-25T12:00:00Z",
+      "pinned": true
+    },
+    {
+      "id": "post_2",
+      "title": "Regleman NatCash & Verifikasyon Prèv",
+      "description": "Chak fwa w ap fè yon depo, toujou verifye nimewo +509 40987659 (MATHURIN KERLINDGE). Voye screenshot la dirèkteman nan aplikasyon an oswa sou WhatsApp nou pou verifikasyon rapid.",
+      "mediaType": "none",
+      "tiktokUrl": "https://tiktok.com/@kekechallenge",
+      "likes": [
+        "usr_demo_2"
+      ],
+      "comments": [],
+      "createdAt": "2025-06-26T09:00:00Z",
+      "pinned": false
+    }
+  ],
+  "games": [
+    {
+      "id": "game_memory",
+      "title": "Memory Master",
+      "category": "memory",
+      "icon": "🧠",
+      "badge": "🧠 MEMWA",
+      "description": "Sonje pozisyon kat yo epi jwenn tout pè imaj ki menm anvan tan an fini sou 6 nivo difikilte !",
+      "rules": "Vire 2 kat alafwa. Lè yo menm, yo rete louvri. Fè l nan pi piti mouvman posib.",
+      "entryFee": 0,
+      "isPaid": false,
+      "isActive": true,
+      "levelsCount": 6,
+      "highScores": [
+        {
+          "userId": "usr_demo_1",
+          "userName": "Jean William",
+          "score": 150,
+          "date": "2026-10-22"
+        },
+        {
+          "userId": "usr_demo_1",
+          "userName": "Jean William",
+          "score": 100,
+          "date": "2025-06-25"
+        }
+      ]
+    },
+    {
+      "id": "game_football",
+      "title": "Football Challenge",
+      "category": "football",
+      "icon": "⚽",
+      "badge": "⚽ FOUTBÒL",
+      "description": "Kontwole jwè a, vize gòl epi chwazi bon direksyon ak fòs pou bat gardyen an sou 6 nivo difikilte !",
+      "rules": "Vize gòl la, ajiste fòs frap la epi tire. Bat gardyen an ak defansè yo anvan tan fini pou make kantite gòl ki nesesè a.",
+      "entryFee": 65,
+      "isPaid": true,
+      "isActive": true,
+      "levelsCount": 6,
+      "highScores": [
+        {
+          "userId": "usr_demo_1",
+          "userName": "Jean William",
+          "score": 1200,
+          "date": "2025-06-25"
+        }
+      ]
+    },
+    {
+      "id": "game_basket",
+      "title": "Basket Challenge",
+      "category": "basket",
+      "icon": "🏀",
+      "badge": "🏀 BASKÈT",
+      "description": "Voye boul baskèt la nan panyen an avèk bon ang ak bon fòs sou 6 nivo distans ak obstak !",
+      "rules": "Trennen dwèt ou pou mete ang ak fòs lansman an. Fè plis panyen posib ak kantite boul limite ou genyen pou pase nivo a.",
+      "entryFee": 40,
+      "isPaid": true,
+      "isActive": true,
+      "levelsCount": 6,
+      "highScores": [
+        {
+          "userId": "usr_demo_2",
+          "userName": "Marie Carmelle",
+          "score": 980,
+          "date": "2025-06-24"
+        }
+      ]
+    },
+    {
+      "id": "game_bubble",
+      "title": "Bubble Shooter",
+      "category": "bubble",
+      "icon": "🔵",
+      "badge": "🔵 BOUL KOULÈ",
+      "description": "Tire boul koulè pou mete omwen 3 menm koulè ansanm pou yo pete anvan yo rive nan liy danje a !",
+      "rules": "Vize ak lansè a nan pati anba a epi tire. Konekte 3 oswa plis boul menm koulè pou netwaye tablo a.",
+      "entryFee": 35,
+      "isPaid": true,
+      "isActive": true,
+      "levelsCount": 6,
+      "highScores": [
+        {
+          "userId": "usr_demo_1",
+          "userName": "Jean William",
+          "score": 1450,
+          "date": "2025-06-25"
+        }
+      ]
+    },
+    {
+      "id": "game_xo",
+      "title": "XO Arena",
+      "category": "xo",
+      "icon": "❌⭕",
+      "badge": "❌⭕ XO DEFÌ",
+      "description": "Defye advèsè entèlijans atifisyèl la sou 6 nivo soti nan nivo debutan rive nan nivo ekspè san fay !",
+      "rules": "Mete 3 senbòl an liy (orizontal, vètikal oswa dyagonal) anvan advèsè a fè sa pou w genyen match la.",
+      "entryFee": 25,
+      "isPaid": true,
+      "isActive": true,
+      "levelsCount": 6,
+      "highScores": [
+        {
+          "userId": "usr_demo_2",
+          "userName": "Marie Carmelle",
+          "score": 750,
+          "date": "2025-06-24"
+        }
+      ]
+    },
+    {
+      "id": "game_block",
+      "title": "Block Puzzle",
+      "category": "block",
+      "icon": "🧩",
+      "badge": "🧩 BLÒK LOJIK",
+      "description": "Mete diferan fòm blòk sou tablo a pou konplete liy orizontal ak vètikal pou fè yo disparèt !",
+      "rules": "Trennen blòk yo nan espas ki disponib yo. Chak liy konplè disparèt epi ba w pwen. Pa kite tablo a bloke san espas.",
+      "entryFee": 30,
+      "isPaid": true,
+      "isActive": true,
+      "levelsCount": 6,
+      "highScores": [
+        {
+          "userId": "usr_demo_1",
+          "userName": "Jean William",
+          "score": 1100,
+          "date": "2025-06-25"
+        }
+      ]
+    },
+    {
+      "id": "game_hockey",
+      "title": "Air Hockey Battle",
+      "category": "hockey",
+      "icon": "🥅",
+      "badge": "🥅 AIR HOCKEY",
+      "description": "Frape disk la avèk manch ou pou make nan gòl advèsè a pandan w ap defann pwòp gòl ou sou 6 nivo !",
+      "rules": "Glise manch ou avèk dwèt ou pou tire disk la rapid nan gòl advèsè a. Premye jwè ki rive nan kantite gòl obligatwa a genyen.",
+      "entryFee": 45,
+      "isPaid": true,
+      "isActive": true,
+      "levelsCount": 6,
+      "highScores": [
+        {
+          "userId": "usr_demo_2",
+          "userName": "Marie Carmelle",
+          "score": 860,
+          "date": "2025-06-25"
+        }
+      ]
+    },
+    {
+      "id": "game_maze",
+      "title": "Maze Escape",
+      "category": "maze",
+      "icon": "🌀",
+      "badge": "🌀 LABIRENT",
+      "description": "Gide pèsonaj la nan labirent la, ranmase zetwal bonis epi jwenn sòti a anvan tan an fini !",
+      "rules": "Sèvi ak kontwòl direksyon yo pou gide pèsonaj la nan labirent la. Jwenn sòti a anvan revèy la rive nan zewo.",
+      "entryFee": 0,
+      "isPaid": false,
+      "isActive": true,
+      "levelsCount": 6,
+      "highScores": [
+        {
+          "userId": "usr_demo_1",
+          "userName": "Jean William",
+          "score": 920,
+          "date": "2025-06-24"
+        }
+      ]
+    },
+    {
+      "id": "game_tap",
+      "title": "Tap Master",
+      "category": "tap",
+      "icon": "👆",
+      "badge": "👆 VITÈS REFLÈKS",
+      "description": "Teste vitès ak reflèks ou ! Klike rapid sou bon objè yo selon enstriksyon an san w pa peze sou pyèj !",
+      "rules": "Suiv enstriksyon ki parèt anwo a. Klike sèlman sou bon objè yo pou ogmante nòt ou ak kombo w anvan tan fini.",
+      "entryFee": 20,
+      "isPaid": true,
+      "isActive": true,
+      "levelsCount": 6,
+      "highScores": [
+        {
+          "userId": "usr_demo_1",
+          "userName": "Jean William",
+          "score": 1300,
+          "date": "2025-06-23"
+        }
+      ]
+    },
+    {
+      "id": "game_potion",
+      "title": "Potion Lab",
+      "category": "potion",
+      "icon": "🧪",
+      "badge": "🧪 ALCHIMI LAB",
+      "description": "Prepare resèt majik nan laboratwa a ! Melanje bon koulè ak engredyan yo pou kreye eliksir yo !",
+      "rules": "Gade resèt la epi vide bon engredyan yo nan resipyan an pou jwenn koulè mande a san gaspiye esè.",
+      "entryFee": 30,
+      "isPaid": true,
+      "isActive": true,
+      "levelsCount": 6,
+      "highScores": [
+        {
+          "userId": "usr_demo_2",
+          "userName": "Marie Carmelle",
+          "score": 890,
+          "date": "2025-06-25"
+        }
+      ]
+    },
+    {
+      "id": "game_penalty",
+      "title": "Penalty King",
+      "category": "penalty",
+      "icon": "🏆",
+      "badge": "🏆 PENALTI 11M",
+      "description": "Gran tir penalti 11 mèt ! Chwazi kote w ap mete boul la nan kwen filè a pou bat gardyen an !",
+      "rules": "Chwazi kwen gòl la ak fòs tir la. Make kantite penalti ki nesesè pou pase nan nivo siperyè a.",
+      "entryFee": 50,
+      "isPaid": true,
+      "isActive": true,
+      "levelsCount": 6,
+      "highScores": [
+        {
+          "userId": "usr_demo_1",
+          "userName": "Jean William",
+          "score": 1500,
+          "date": "2025-06-25"
+        }
+      ]
+    },
+    {
+      "id": "game_pool",
+      "title": "Pool Master",
+      "category": "pool",
+      "icon": "🎱",
+      "badge": "🎱 BILYA 8-BALL",
+      "description": "Vize boul yo sou tab bilya a, kalkile rebondisman yo epi mete boul sib yo nan twou yo !",
+      "rules": "Vize avèk baton an epi ajiste fòs frap la. Fè tout boul sib yo antre nan twou yo nan kantite frap yo ba ou.",
+      "entryFee": 60,
+      "isPaid": true,
+      "isActive": true,
+      "levelsCount": 6,
+      "highScores": [
+        {
+          "userId": "usr_demo_1",
+          "userName": "Jean William",
+          "score": 1380,
+          "date": "2025-06-25"
+        }
+      ]
+    },
+    {
+      "id": "game_11balon",
+      "title": "11 Balon (7 Nivo)",
+      "category": "balon",
+      "icon": "⚽🎟️",
+      "badge": "🎟️ 11 BALON - 7 NIVO",
+      "description": "Chwazi 1 nan 11 balon yo sou teren an epi grate li ! Jwenn balon ki gen 100 pwen an pou debloke pwochen nivo a jiska Nivo 7 !",
+      "rules": "Gen 11 balon sou teren an. 1 sèl balon gen 100 pwen. Chwazi yon balon, grate sifas li ak dwèt ou. Si w jwenn 100 pwen yo, ou pase nan pwochen nivo a ! Fini tout 7 nivo yo pou vin chanpyon !",
+      "entryFee": 50,
+      "isPaid": true,
+      "isActive": true,
+      "levelsCount": 7,
+      "highScores": [
+        {
+          "userId": "usr_demo_1",
+          "userName": "Jean William",
+          "score": 700,
+          "date": "2025-06-25"
+        }
+      ]
+    },
+    {
+      "id": "game_jeudemots",
+      "title": "Jeu de Mots",
+      "category": "jeudemots",
+      "icon": "🔤",
+      "badge": "🔤 JWÈT MO",
+      "description": "Dekouvri mo kache epi fòme bon mo avèk lèt yo ba ou sou 7 nivo difikilte !",
+      "rules": "Peze lèt yo pou fòme mo kache yo anvan tan fini. Chwazi endis si w bloke, epi pase tout 7 nivo yo pou genyen pwen !",
+      "entryFee": 40,
+      "isPaid": true,
+      "isActive": true,
+      "levelsCount": 7,
+      "highScores": [
+        {
+          "userId": "usr_demo_1",
+          "userName": "Jean William",
+          "score": 850,
+          "date": "2025-06-25"
+        }
+      ]
+    },
+    {
+      "id": "game_tubemaster",
+      "title": "Tube Master",
+      "category": "tubemaster",
+      "icon": "🧪",
+      "badge": "🧪 RANJE TIB YO",
+      "description": "Triye boul plizyè koulè yo pou mete chak koulè nan pwòp tib transparan pa li sou 7 nivo !",
+      "rules": "Klike sou yon tib pou leve boul ki anlè a, epi klike sou tib kote w vle mete l la. Ranje tout boul menm koulè nan menm tib.",
+      "entryFee": 40,
+      "isPaid": true,
+      "isActive": true,
+      "levelsCount": 7,
+      "highScores": [
+        {
+          "userId": "usr_demo_2",
+          "userName": "Marie Carmelle",
+          "score": 920,
+          "date": "2025-06-25"
+        }
+      ]
+    },
+    {
+      "id": "game_dames",
+      "title": "Dames",
+      "category": "dames",
+      "icon": "♟️",
+      "badge": "♟️ JWÈT DAMA",
+      "description": "Jwèt Dama klasik sou yon damye 8x8 ! Jwe Solo kont entèlijans atifisyèl oswa 2 Jwè sou menm aparèy la sou 7 nivo difikilte !",
+      "rules": "Deplase pyès yo sou dyagonal, sote sou pyès advèsè pou pran yo. Rive nan dènye liy lan pou transfòme an dam 👑 !",
+      "entryFee": 45,
+      "isPaid": true,
+      "isActive": true,
+      "levelsCount": 7,
+      "highScores": [
+        {
+          "userId": "usr_demo_1",
+          "userName": "Jean William",
+          "score": 1100,
+          "date": "2025-06-25"
+        }
+      ]
+    },
+    {
+      "id": "game_parchisi",
+      "title": "Parchisi Star",
+      "category": "parchisi",
+      "icon": "🎲",
+      "badge": "🎲 PARCHISI / LUDO",
+      "description": "Lanse zo a, soti pyès ou nan baz la, voye pyès advèsè tounen nan baz yo epi mennen 4 pyès ou nan kay santral la !",
+      "rules": "Fè 6 sou zo a pou soti pyès nan baz. Kouri sou chemen an, pwoteje pyès ou sou kare sekirite ⭐ epi rive nan zòn santral la.",
+      "entryFee": 50,
+      "isPaid": true,
+      "isActive": true,
+      "levelsCount": 7,
+      "highScores": [
+        {
+          "userId": "usr_demo_2",
+          "userName": "Marie Carmelle",
+          "score": 1250,
+          "date": "2025-06-25"
+        }
+      ]
+    },
+    {
+      "id": "game_pianomizikal",
+      "title": "Piano Mizikal",
+      "category": "pianomizikal",
+      "icon": "🎹",
+      "badge": "🎹 PIANO MIZIKAL",
+      "description": "Peze bon mozayik piano yo nan bon ritm pou jwe melodi dous, konpa ak mizik klasik sou 7 nivo ritmik !",
+      "rules": "Klike sou mozayik yo lè yo rive nan liy anba a pou pwodui bon nòt piano a. Fè gwo kombo san rate pou debloke tout 7 nivo yo !",
+      "entryFee": 45,
+      "isPaid": true,
+      "isActive": true,
+      "levelsCount": 7,
+      "highScores": [
+        {
+          "userId": "usr_demo_1",
+          "userName": "Jean William",
+          "score": 1400,
+          "date": "2025-06-25"
+        }
+      ]
+    }
+  ],
+  "transactions": [
+    {
+      "id": "tx_rem_1793048070503_9s4c",
+      "referenceId": "DEP-913615",
+      "userId": "usr_demo_2",
+      "userName": "Marie Carmelle",
+      "userPhone": "+509 37889922",
+      "type": "depo",
+      "amount": 10,
+      "status": "konfime",
+      "createdAt": "2026-10-26T20:54:30.503Z",
+      "reviewedBy": "Sistèm MASTER PLAY",
+      "reviewedAt": "2026-10-26T20:54:30.503Z",
+      "metadata": {
+        "reason": "lajan_restan_kado",
+        "description": "Lajan restan (10 HT) soti nan kado Reken ki koute 100 HT"
+      }
+    },
+    {
+      "id": "tx_admin_1793048070503_g4by",
+      "referenceId": "KAD-656466",
+      "userId": "admin_prince509",
+      "userName": "Kont Administratè (Revni Kado)",
+      "userPhone": "+509 4098 7659",
+      "type": "kado",
+      "amount": 100,
+      "status": "konfime",
+      "createdAt": "2026-10-26T20:54:30.503Z",
+      "reviewedBy": "Sistèm MASTER PLAY",
+      "reviewedAt": "2026-10-26T20:54:30.503Z",
+      "metadata": {
+        "description": "Kado Reken voye pa Jean William bay Marie Carmelle",
+        "date": "2026-10-26",
+        "time": "20:54:30",
+        "giftValue": 100,
+        "senderName": "Jean William",
+        "receiverName": "Marie Carmelle",
+        "votesAwarded": 6,
+        "remainderCashTransferred": 10,
+        "votePrice": 15
+      }
+    },
+    {
+      "id": "tx_1793048070503_39ar",
+      "referenceId": "KAD-787178",
+      "userId": "usr_demo_1",
+      "userName": "Jean William",
+      "userPhone": "+509 40128456",
+      "type": "kado",
+      "amount": 100,
+      "status": "konfime",
+      "createdAt": "2026-10-26T20:54:30.503Z",
+      "reviewedBy": "Sistèm Otomatik",
+      "reviewedAt": "2026-10-26T20:54:30.503Z",
+      "metadata": {
+        "giftName": "Reken",
+        "receiverName": "Marie Carmelle",
+        "wholeVotes": 6,
+        "remainderCash": 10
+      }
+    },
+    {
+      "id": "tx_bonus_1793048059505_ykjq",
+      "referenceId": "DEP-454649",
+      "userId": "usr_1793048059505_2h65",
+      "userName": "Ti Mari Tès",
+      "userPhone": "+509 3888 7777",
+      "type": "depo",
+      "amount": 50,
+      "natcashName": "Ti Mari Tès",
+      "natcashPhone": "+509 3888 7777",
+      "status": "konfime",
+      "metadata": {
+        "reason": "bonis_byenvini",
+        "description": "Bonis byenvini 50 HT nan MASTER PLAY"
+      },
+      "createdAt": "2026-10-26T20:54:19.505Z",
+      "reviewedAt": "2026-10-26T20:54:19.505Z",
+      "reviewedBy": "Sistèm MASTER PLAY"
+    },
+    {
+      "id": "tx_seed_1",
+      "referenceId": "DEP-409182",
+      "userId": "usr_demo_1",
+      "userName": "Jean William",
+      "userPhone": "+509 40128456",
+      "type": "depo",
+      "amount": 1250,
+      "natcashName": "Jean William",
+      "natcashPhone": "+509 40128456",
+      "status": "konfime",
+      "createdAt": "2025-06-20T10:15:00Z",
+      "reviewedAt": "2025-06-20T10:20:00Z",
+      "reviewedBy": "Prince509"
+    }
+  ],
+  "notifications": [
+    {
+      "id": "notif_1793048138466_wpt3",
+      "userId": "usr_demo_2",
+      "title": "Nouvo Abòne !",
+      "message": "Jean William fèk abòne ak pwofil ou sou MASTER PLAY !",
+      "type": "anons",
+      "isRead": false,
+      "createdAt": "2026-10-26T20:55:38.466Z"
+    },
+    {
+      "id": "notif_1793048070503_ezc9",
+      "userId": "usr_demo_1",
+      "title": "Kado 🦈 voye avèk siksè !",
+      "message": "Ou voye kado Reken (100 HT) bay Marie Carmelle. Li resevwa 6 vòt ak 10 HT restan.",
+      "type": "kado",
+      "isRead": false,
+      "createdAt": "2026-10-26T20:54:30.503Z"
+    },
+    {
+      "id": "notif_1793048070503_34pw",
+      "userId": "usr_demo_2",
+      "title": "Ou resevwa yon kado 🦈 Reken !",
+      "message": "Jean William voye yon kado Reken (100 HT) ba ou! Ou resevwa 6 vòt ak 10 HT nan balans ou !",
+      "type": "kado",
+      "isRead": false,
+      "createdAt": "2026-10-26T20:54:30.503Z"
+    },
+    {
+      "id": "notif_1793048059505_wggk",
+      "userId": "usr_1793048059505_2h65",
+      "title": "Felisitasyon !",
+      "message": "Felisitasyon! Ou resevwa 50 HT kòm bonis byenvini nan MASTER PLAY.",
+      "type": "anons",
+      "isRead": false,
+      "createdAt": "2026-10-26T20:54:19.505Z"
+    },
+    {
+      "id": "notif_1793048053170_azkl",
+      "userId": "usr_1793048053170_ueyj",
+      "title": "Byenveni nan MASTER PLAY !",
+      "message": "Kont ou kreye avèk siksè. Ou resevwa 100 HT kado byenvini !",
+      "type": "anons",
+      "isRead": false,
+      "createdAt": "2026-10-26T20:54:13.170Z"
+    },
+    {
+      "id": "notif_1792957458753_izzn",
+      "userId": "usr_demo_1",
+      "title": "Nouvo Abòne !",
+      "message": "Marie Carmelle fèk abòne ak pwofil ou sou MASTER PLAY !",
+      "type": "anons",
+      "isRead": false,
+      "createdAt": "2026-10-25T19:44:18.753Z"
+    },
+    {
+      "id": "notif_1792684288048_87uz",
+      "userId": "usr_demo_1",
+      "title": "Enskripsyon reyisi: COUP DU ROI",
+      "message": "Ou enskri avèk siksè nan COUP DU ROI. Nou retire 1000 HT nan balans ou.",
+      "type": "konpetisyon",
+      "isRead": false,
+      "createdAt": "2026-10-22T15:51:28.048Z"
+    },
+    {
+      "id": "notif_1792684276231_xfrf",
+      "userId": "all",
+      "title": "Nouvo piblikasyon: Nouvo Chanpyon MASTER COUP Kourone !",
+      "message": "Felisitasyon ak Jean William ki se gran chanpyon ofisyèl la avèk 75,000 HT !...",
+      "type": "anons",
+      "isRead": false,
+      "createdAt": "2026-10-22T15:51:16.231Z"
+    },
+    {
+      "id": "notif_1792684270910_a2vr",
+      "userId": "all",
+      "title": "👑 NOU GEN YON CHANPYON: Jean William !",
+      "message": "Jean William genyen Gran Final MASTER COUP lan ! Felisitasyon ak nouvo Chanpyon an !",
+      "type": "rezilta",
+      "isRead": false,
+      "createdAt": "2026-10-22T15:51:10.910Z"
+    },
+    {
+      "id": "notif_1792684266634_ytn1",
+      "userId": "all",
+      "title": "Gran Final MASTER COUP Dimanch !",
+      "message": "Jean William kont Claudette Louis nan gran final la !",
+      "type": "konpetisyon",
+      "isRead": false,
+      "createdAt": "2026-10-22T15:51:06.634Z"
+    },
+    {
+      "id": "notif_1792684256869_h41d",
+      "userId": "all",
+      "title": "Demi-final MASTER COUP pwograme !",
+      "message": "4 gayan Vandredi yo pral goumen nan Demi-final Samdi an !",
+      "type": "konpetisyon",
+      "isRead": false,
+      "createdAt": "2026-10-22T15:50:56.869Z"
+    },
+    {
+      "id": "notif_1792684251418_yyin",
+      "userId": "all",
+      "title": "Top 8 Kalifye pou MASTER COUP !",
+      "message": "Kalifikasyon Top 8 la konfime pou faz eliminatwa Vandredi a. Felisitasyon ak 8 gwo jwè yo !",
+      "type": "rezilta",
+      "isRead": false,
+      "createdAt": "2026-10-22T15:50:51.418Z"
+    },
+    {
+      "id": "notif_1",
+      "userId": "usr_demo_1",
+      "title": "Depo konfime avèk siksè !",
+      "message": "Depo 1,250 HT ou a sou NatCash te konfime. Balans ou pare pou konpetisyon yo.",
+      "type": "depo",
+      "isRead": false,
+      "createdAt": "2025-06-20T10:20:00Z"
+    },
+    {
+      "id": "notif_2",
+      "userId": "all",
+      "title": "Konpetisyon MASTER COUP louvri !",
+      "message": "Enskri kounye a pou w ka genyen 75,000 HT ak kouròn MASTER la.",
+      "type": "konpetisyon",
+      "isRead": false,
+      "createdAt": "2025-06-22T08:00:00Z"
+    }
+  ],
+  "auditLogs": [
+    {
+      "id": "log_1793048125469_d0rb",
+      "timestamp": "2026-10-26T20:55:25.469Z",
+      "action": "ANREJISTRE_NIVO_KONPETISYON",
+      "details": "Jean William anrejistre Nivo 1 nan game_jeudemots pou 150 pts nan COUP DU ROI",
+      "actor": "Sistèm"
+    },
+    {
+      "id": "log_1793048121884_cqz6",
+      "timestamp": "2026-10-26T20:55:21.884Z",
+      "action": "CHWAZI_JWÈT_KONPETISYON",
+      "details": "Jwèt otorize pou COUP DU ROI mete ajou (3 jwèt)",
+      "actor": "Prince509"
+    },
+    {
+      "id": "log_1793048070503_zgki",
+      "timestamp": "2026-10-26T20:54:30.503Z",
+      "action": "VOYE_KADO",
+      "details": "Jean William voye kado Reken (100 HT) bay Marie Carmelle -> 6 vòt + 10 HT restan",
+      "actor": "Itilizatè"
+    },
+    {
+      "id": "log_1793048059505_vdap",
+      "timestamp": "2026-10-26T20:54:19.505Z",
+      "action": "ENSKRIPSYON_ITILIZATÈ",
+      "details": "Nouvo itilizatè kreye: Ti Mari Tès (+509 3888 7777) avèk bonis byenvini 50 HT",
+      "actor": "Sistèm"
+    },
+    {
+      "id": "log_1793048053170_3yhw",
+      "timestamp": "2026-10-26T20:54:13.170Z",
+      "action": "ENSKRIPSYON_ITILIZATÈ",
+      "details": "Nouvo itilizatè kreye: Ti Gason Tès (+509 3899 9999)",
+      "actor": "Sistèm"
+    },
+    {
+      "id": "log_1792684288062_6ju7",
+      "timestamp": "2026-10-22T15:51:28.062Z",
+      "action": "ANREJISTRE_PWEN_KONPETISYON",
+      "details": "Itilizatè Jean William fè 600 pwen nan jwèt game_football pou konpetisyon COUP DU ROI",
+      "actor": "Sistèm"
+    },
+    {
+      "id": "log_1792684288048_4ml5",
+      "timestamp": "2026-10-22T15:51:28.048Z",
+      "action": "ENSKRIPSYON_KONPETISYON",
+      "details": "Itilizatè Jean William (+509 40128456) enskri nan COUP DU ROI pou 1000 HT",
+      "actor": "Itilizatè"
+    },
+    {
+      "id": "log_1792684280843_2h2k",
+      "timestamp": "2026-10-22T15:51:20.843Z",
+      "action": "MODIFIE_PIBLIKASYON",
+      "details": "Piblikasyon \"👑 Nouvo Chanpyon MASTER COUP Kourone !\" modifye pa admin",
+      "actor": "Prince509"
+    },
+    {
+      "id": "log_1792684276231_kpay",
+      "timestamp": "2026-10-22T15:51:16.231Z",
+      "action": "KREYE_PIBLIKASYON",
+      "details": "Nouvo piblikasyon kreye (image): \"Nouvo Chanpyon MASTER COUP Kourone !\"",
+      "actor": "Prince509"
+    },
+    {
+      "id": "log_1792684270910_e99t",
+      "timestamp": "2026-10-22T15:51:10.910Z",
+      "action": "ANREJISTRE_REZILTA_MATCH",
+      "details": "Rezilta anrejistre pou match match_comp_1_final nan MASTER COUP: Jean William (5) vs Claudette Louis (3)",
+      "actor": "Prince509"
+    },
+    {
+      "id": "log_1792684270910_fa41",
+      "timestamp": "2026-10-22T15:51:10.910Z",
+      "action": "KOUWONE_CHANPYON",
+      "details": "Jean William se Chanpyon MASTER COUP (75,000 HT + Kouròn MASTER)",
+      "actor": "Prince509"
+    },
+    {
+      "id": "log_1792684266634_9vuz",
+      "timestamp": "2026-10-22T15:51:06.634Z",
+      "action": "ANREJISTRE_REZILTA_MATCH",
+      "details": "Rezilta anrejistre pou match match_comp_1_demi_2 nan MASTER COUP: Vanessa Joseph (2) vs Claudette Louis (4)",
+      "actor": "Prince509"
+    },
+    {
+      "id": "log_1792684266621_r9cm",
+      "timestamp": "2026-10-22T15:51:06.621Z",
+      "action": "ANREJISTRE_REZILTA_MATCH",
+      "details": "Rezilta anrejistre pou match match_comp_1_demi_1 nan MASTER COUP: Jean William (3) vs Pierre Ronald (1)",
+      "actor": "Prince509"
+    },
+    {
+      "id": "log_1792684256869_saao",
+      "timestamp": "2026-10-22T15:50:56.869Z",
+      "action": "ANREJISTRE_REZILTA_MATCH",
+      "details": "Rezilta anrejistre pou match match_comp_1_top8_4 nan MASTER COUP: Frantz Desir (1) vs Claudette Louis (3)",
+      "actor": "Prince509"
+    },
+    {
+      "id": "log_1792684256856_dxvl",
+      "timestamp": "2026-10-22T15:50:56.856Z",
+      "action": "ANREJISTRE_REZILTA_MATCH",
+      "details": "Rezilta anrejistre pou match match_comp_1_top8_3 nan MASTER COUP: Vanessa Joseph (4) vs Mackenson Paul (2)",
+      "actor": "Prince509"
+    },
+    {
+      "id": "log_1792684256842_31lc",
+      "timestamp": "2026-10-22T15:50:56.842Z",
+      "action": "ANREJISTRE_REZILTA_MATCH",
+      "details": "Rezilta anrejistre pou match match_comp_1_top8_2 nan MASTER COUP: Pierre Ronald (2) vs Stanley Cadet (0)",
+      "actor": "Prince509"
+    },
+    {
+      "id": "log_1792684256828_a8dr",
+      "timestamp": "2026-10-22T15:50:56.828Z",
+      "action": "ANREJISTRE_REZILTA_MATCH",
+      "details": "Rezilta anrejistre pou match match_comp_1_top8_1 nan MASTER COUP: Jean William (3) vs Marie Carmelle (1)",
+      "actor": "Prince509"
+    },
+    {
+      "id": "log_1792684251418_4t96",
+      "timestamp": "2026-10-22T15:50:51.418Z",
+      "action": "KONFIME_KALIFIKASYON_TOP8",
+      "details": "Top 8 kalifye pou MASTER COUP. 4 match Vandredi kreye.",
+      "actor": "Prince509"
+    },
+    {
+      "id": "log_1792684245479_i2bq",
+      "timestamp": "2026-10-22T15:50:45.479Z",
+      "action": "MODIFIE_PRI_JWÈT",
+      "details": "Pri jwèt \"Football Challenge\" chanje de 50 HT a 65 HT (Aktif: true)",
+      "actor": "Prince509"
+    },
+    {
+      "id": "log_1",
+      "timestamp": "2025-06-20T10:20:00Z",
+      "action": "KONFIME_DEPO",
+      "details": "Depo DEP-409182 konfime pou Jean William (1,250 HT)",
+      "actor": "Prince509"
+    }
+  ],
+  "gifts": [
+    {
+      "id": "gift_chat",
+      "name": "Chat",
+      "icon": "🐱",
+      "description": "Yon ti chat bèl pou ankouraje jwè a !",
+      "price": 20,
+      "isActive": true
+    },
+    {
+      "id": "gift_reken",
+      "name": "Reken",
+      "icon": "🦈",
+      "description": "Fòs reken pou devore advèsè a !",
+      "price": 100,
+      "isActive": true
+    },
+    {
+      "id": "gift_pistole",
+      "name": "Pistolè",
+      "icon": "🔫",
+      "description": "Tir presizyon pou batay la !",
+      "price": 300,
+      "isActive": true
+    },
+    {
+      "id": "gift_lyon",
+      "name": "Lyon",
+      "icon": "🦁",
+      "description": "Wa nan forè a pou vre chanpyon an !",
+      "price": 400,
+      "isActive": true
+    }
+  ],
+  "giftTransactions": [
+    {
+      "id": "gtx_1793048070503_xnb2",
+      "referenceId": "KAD-787178",
+      "senderId": "usr_demo_1",
+      "senderName": "Jean William",
+      "receiverId": "usr_demo_2",
+      "receiverName": "Marie Carmelle",
+      "receiverPhoto": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
+      "giftId": "gift_reken",
+      "giftName": "Reken",
+      "giftIcon": "🦈",
+      "price": 100,
+      "wholeVotes": 6,
+      "remainderCash": 10,
+      "date": "2026-10-26",
+      "time": "20:54:30",
+      "timestamp": "2026-10-26T20:54:30.503Z",
+      "status": "konfime"
+    },
+    {
+      "id": "gtx_seed_1",
+      "referenceId": "KAD-102938",
+      "senderId": "usr_demo_2",
+      "senderName": "Marie Carmelle",
+      "receiverId": "usr_demo_1",
+      "receiverName": "Jean William",
+      "receiverPhoto": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+      "giftId": "gift_chat",
+      "giftName": "Chat",
+      "giftIcon": "🐱",
+      "price": 20,
+      "competitionId": "comp_1",
+      "timestamp": "2025-06-21T14:00:00Z",
+      "status": "konfime"
+    }
+  ],
+  "votes": [
+    {
+      "id": "vot_seed_1",
+      "referenceId": "VOT-889922",
+      "voterId": "usr_demo_2",
+      "voterName": "Marie Carmelle",
+      "competitionId": "comp_1",
+      "matchId": "match_comp_1_top8_1",
+      "playerId": "usr_demo_1",
+      "playerName": "Jean William",
+      "amount": 15,
+      "timestamp": "2025-06-21T15:00:00Z",
+      "status": "konfime"
+    }
+  ],
+  "balonProgress": [
+    {
+      "userId": "usr_demo_1",
+      "currentLevel": 4,
+      "unlockedLevels": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "completedLevels": [
+        1,
+        2,
+        3
+      ],
+      "levelResults": [
+        {
+          "level": 1,
+          "won": true,
+          "pointsEarned": 100,
+          "chosenBall": 4,
+          "winningBall": 4,
+          "timestamp": "2025-06-25T14:00:00Z"
+        },
+        {
+          "level": 2,
+          "won": true,
+          "pointsEarned": 100,
+          "chosenBall": 7,
+          "winningBall": 7,
+          "timestamp": "2025-06-25T14:05:00Z"
+        },
+        {
+          "level": 3,
+          "won": true,
+          "pointsEarned": 100,
+          "chosenBall": 2,
+          "winningBall": 2,
+          "timestamp": "2025-06-25T14:10:00Z"
+        }
+      ],
+      "totalPoints": 300,
+      "status": "in_progress",
+      "sessionPaid": true,
+      "lastUpdated": "2025-06-25T14:10:00Z"
+    }
+  ],
+  "balonConfig": {
+    "pointsPerWin": 100,
+    "isActive": true,
+    "entryFee": 50,
+    "totalLevels": 7
+  },
+  "userGameProgress": {},
+  "subscriptions": [
+    {
+      "id": "sub_1793048138466_7ghn",
+      "subscriberId": "usr_demo_1",
+      "targetUserId": "usr_demo_2",
+      "createdAt": "2026-10-26T20:55:38.466Z"
+    }
+  ],
+  "dailyLevelRecords": [
+    {
+      "id": "dlr_1793048125468_6f2h",
+      "competitionId": "comp_2",
+      "userId": "usr_demo_1",
+      "gameId": "game_jeudemots",
+      "level": 1,
+      "dayKey": "Lendi",
+      "score": 150,
+      "createdAt": "2026-10-26T20:55:25.468Z"
+    }
+  ]
+}

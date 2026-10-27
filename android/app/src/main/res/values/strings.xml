@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">MASTER PLAY</string>
+    <string name="app_subtitle">Kèkè Challenge</string>
+    <string name="offline_title">Pa gen koneksyon Entènèt</string>
+    <string name="offline_message">Tanpri verifye si done mobil ou oswa Wi-Fi ou limen pou kontinye jwe nan MASTER PLAY.</string>
+    <string name="btn_retry">Eseye Ankò</string>
+    <string name="toast_exit">Peze ankò pou kite MASTER PLAY</string>
+</resources>
