@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Game, User } from '../types';
 import { api } from '../services/api';
-import { Gamepad2, Play, Trophy, Sparkles, ArrowLeft, ShieldCheck, Flame, Star, CheckCircle } from 'lucide-react';
+import { Gamepad2, Play, Trophy, Sparkles, ArrowLeft, ShieldCheck, Flame, Star, CheckCircle, Wallet, Info, AlertCircle, X, CheckCircle2 } from 'lucide-react';
 
 // Import all official game engines
 import { FootballChallenge } from './games/FootballChallenge';
@@ -50,6 +50,10 @@ export const GamesView: React.FC<GamesViewProps> = ({
   const [filter, setFilter] = useState<'all' | 'active' | 'paid' | 'free'>('all');
   const [activePlayingGame, setActivePlayingGame] = useState<Game | null>(null);
   const [gameDifficulty, setGameDifficulty] = useState<'fasil' | 'mwayen' | 'difisil'>('fasil');
+  const [gameToPay, setGameToPay] = useState<Game | null>(null);
+  const [isPayingGameFee, setIsPayingGameFee] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
+  const [paymentSuccessToast, setPaymentSuccessToast] = useState('');
 
   // Filter games
   const filteredGames = games.filter((g) => {
@@ -59,8 +63,179 @@ export const GamesView: React.FC<GamesViewProps> = ({
     return true;
   });
 
+  const handleInitiatePlay = (game: Game) => {
+    if (!currentUser) {
+      onOpenAuth();
+      return;
+    }
+
+    if (!game.isActive) {
+      alert('Jwèt sa a dezaktive pou le moman pa administratè a.');
+      return;
+    }
+
+    // Avion Crash uses internal live-betting real money engine
+    if (game.category === 'avioncrash') {
+      setActivePlayingGame(game);
+      return;
+    }
+
+    const fee = Math.max(0, Number(game.entryFee) || 0);
+
+    // If game has an entry fee set by admin, require payment confirmation
+    if (fee > 0) {
+      setPaymentError('');
+      setGameToPay(game);
+    } else {
+      // Free game
+      setActivePlayingGame(game);
+    }
+  };
+
+  const handleConfirmPayAndPlay = async () => {
+    if (!gameToPay || !currentUser) return;
+    const fee = Math.max(0, Number(gameToPay.entryFee) || 0);
+
+    if (currentUser.balance < fee) {
+      setPaymentError(`Balans ou (${currentUser.balance} HT) pa ase pou peye frè ${fee} HT la. Tanpri fè yon depo sou NatCash.`);
+      return;
+    }
+
+    try {
+      setIsPayingGameFee(true);
+      setPaymentError('');
+      const res = await api.payGameEntry(gameToPay.id, currentUser.id);
+      if (!res.success || !res.user) {
+        setPaymentError(res.error || 'Erè pandan dediksyon frè jwèt la.');
+        setIsPayingGameFee(false);
+        return;
+      }
+
+      onBalanceUpdate(res.user);
+      const targetGame = gameToPay;
+      setGameToPay(null);
+      setActivePlayingGame(targetGame);
+      setPaymentSuccessToast(`Peman ${fee} HT reyisi ! Jwèt ${targetGame.title} la kòmanse.`);
+      setTimeout(() => setPaymentSuccessToast(''), 4500);
+    } catch (err: any) {
+      setPaymentError(err.message || 'Erè koneksyon ak sèvè a.');
+    } finally {
+      setIsPayingGameFee(false);
+    }
+  };
+
   return (
     <div className="space-y-6 pb-12">
+      {/* Toast Notification */}
+      {paymentSuccessToast && (
+        <div className="fixed top-20 right-4 z-50 p-4 rounded-2xl bg-emerald-950/95 border border-emerald-500 text-white shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+          <span className="text-xs font-bold">{paymentSuccessToast}</span>
+        </div>
+      )}
+
+      {/* Payment Confirmation Modal */}
+      {gameToPay && currentUser && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#131B2E] border-2 border-amber-500/50 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-5 animate-in zoom-in-95">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-[#0B0F19] border border-amber-500/30 flex items-center justify-center text-3xl">
+                  {gameToPay.icon || '🎮'}
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-white">{gameToPay.title}</h3>
+                  <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider">
+                    {gameToPay.levelsCount || 6} Nivo • Sal Jwèt
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setGameToPay(null)}
+                className="w-8 h-8 rounded-xl bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Price breakdown box */}
+            <div className="bg-[#0B0F19] p-4 rounded-2xl border border-slate-800 space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400 font-medium">Pri Jwèt la (Fikse pa Admin):</span>
+                <span className="text-base font-black text-amber-400 tabular-nums">
+                  {gameToPay.entryFee} HT
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs border-t border-slate-800/80 pt-2">
+                <span className="text-slate-400 font-medium">Balans NatCash ou aktyèl:</span>
+                <span className={`text-sm font-bold tabular-nums ${currentUser.balance >= gameToPay.entryFee ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {currentUser.balance} HT
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs border-t border-slate-800/80 pt-2">
+                <span className="text-slate-400 font-medium">Balans ou apre peman an:</span>
+                <span className="text-xs font-bold text-slate-300 tabular-nums">
+                  {Math.max(0, currentUser.balance - gameToPay.entryFee)} HT
+                </span>
+              </div>
+            </div>
+
+            {/* Explanation box: Free in competitions vs Paid in games room */}
+            <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200/90 space-y-1">
+              <div className="font-bold flex items-center gap-1.5 text-amber-400">
+                <Info className="w-3.5 h-3.5 shrink-0" />
+                <span>Règ sou Pri Jwèt yo :</span>
+              </div>
+              <p className="leading-relaxed text-[11px]">
+                • <strong>Nan Sal Jwèt la (isit la) :</strong> Ou dwe peye pri administratè a mete pou jwèt sa a (<strong>{gameToPay.entryFee} HT</strong>) sou balans ou.
+              </p>
+              <p className="leading-relaxed text-[11px] text-emerald-300 font-semibold">
+                • <strong>Andan Konpetisyon yo :</strong> Tout jwèt yo <u>100% GRATIS</u> pou nenpòt jwè ki deja enskri nan yon konpetisyon !
+              </p>
+            </div>
+
+            {paymentError && (
+              <div className="p-3 rounded-xl bg-red-500/20 border border-red-500/30 text-xs font-bold text-red-300 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{paymentError}</span>
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex flex-col gap-2 pt-1">
+              {currentUser.balance >= gameToPay.entryFee ? (
+                <button
+                  onClick={handleConfirmPayAndPlay}
+                  disabled={isPayingGameFee}
+                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Play className="w-4 h-4 fill-slate-950" />
+                  <span>{isPayingGameFee ? 'Ap trete peman...' : `PEYE ${gameToPay.entryFee} HT & JWÈ`}</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    setGameToPay(null);
+                    onOpenDeposit();
+                  }}
+                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-black text-xs uppercase tracking-wider transition-all shadow-lg flex items-center justify-center gap-2"
+                >
+                  <Wallet className="w-4 h-4" />
+                  <span>FÈ YON DEPO SOUNAT CASH (MANKE {gameToPay.entryFee - currentUser.balance} HT)</span>
+                </button>
+              )}
+
+              <button
+                onClick={() => setGameToPay(null)}
+                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-xs font-bold transition-colors"
+              >
+                Anile
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {!activePlayingGame ? (
         <>
           {/* Top Banner */}
@@ -75,6 +250,24 @@ export const GamesView: React.FC<GamesViewProps> = ({
               </h1>
               <p className="text-xs sm:text-sm text-slate-300 mt-2 leading-relaxed">
                 Jwe Jeu de Mots, Tube Master, Dames, Parchisi Star, Piano Mizikal ak 11 Balon (7 Nivo), ansanm ak tout lòt jwèt yo pou ranmase pwen ak lajan kach !
+              </p>
+            </div>
+          </div>
+
+          {/* Info Banner: Explaining Free in Competition vs Paid in Games View */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-950/40 via-[#131B2E] to-blue-950/40 border border-amber-500/30 flex items-start gap-3 shadow-lg">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center shrink-0 mt-0.5">
+              <Info className="w-4 h-4" />
+            </div>
+            <div className="text-xs text-slate-300 space-y-1">
+              <div className="font-bold text-white flex items-center gap-2">
+                <span>RÈG SOU PRI JWÈT YO : Sal Jwèt vs Konpetisyon</span>
+              </div>
+              <p className="leading-relaxed">
+                • <strong className="text-amber-400">Sal Jwèt (Paj sa a) :</strong> Chak jwèt gen yon pri fiks administratè a mete ki retire sou balans NatCash ou chak fwa w ap jwe.
+              </p>
+              <p className="leading-relaxed">
+                • <strong className="text-emerald-400">Andan Konpetisyon :</strong> Depi ou enskri nan yon konpetisyon, tout jwèt ki nan konpetisyon sa a vin <strong className="text-emerald-300 underline font-black">100% GRATIS</strong> pou ou pandan tout dire konpetisyon an !
               </p>
             </div>
           </div>
@@ -127,7 +320,7 @@ export const GamesView: React.FC<GamesViewProps> = ({
               <GameItemCard
                 key={game.id}
                 game={game}
-                onPlay={() => setActivePlayingGame(game)}
+                onPlay={() => handleInitiatePlay(game)}
               />
             ))}
           </div>
@@ -222,8 +415,10 @@ export const GamesView: React.FC<GamesViewProps> = ({
                     onGameOver={(score, prize) => {
                       const mult = gameDifficulty === 'fasil' ? 1 : gameDifficulty === 'mwayen' ? 1.5 : 2;
                       const adjusted = Math.round(score * mult);
-                      if (prize && onBalanceUpdate && currentUser) {
-                        onBalanceUpdate({ ...currentUser, balance: currentUser.balance + prize });
+                      if (currentUser) {
+                        api.playGame(activePlayingGame.id, currentUser.id, adjusted, prize, true)
+                          .then((res) => { if (res.success && res.user) onBalanceUpdate(res.user); })
+                          .catch(console.error);
                       }
                       setActivePlayingGame(null);
                     }}
@@ -236,8 +431,10 @@ export const GamesView: React.FC<GamesViewProps> = ({
                     onGameOver={(score, prize) => {
                       const mult = gameDifficulty === 'fasil' ? 1 : gameDifficulty === 'mwayen' ? 1.5 : 2;
                       const adjusted = Math.round(score * mult);
-                      if (prize && onBalanceUpdate && currentUser) {
-                        onBalanceUpdate({ ...currentUser, balance: currentUser.balance + prize });
+                      if (currentUser) {
+                        api.playGame(activePlayingGame.id, currentUser.id, adjusted, prize, true)
+                          .then((res) => { if (res.success && res.user) onBalanceUpdate(res.user); })
+                          .catch(console.error);
                       }
                       setActivePlayingGame(null);
                     }}
@@ -250,8 +447,10 @@ export const GamesView: React.FC<GamesViewProps> = ({
                     onGameOver={(score, prize) => {
                       const mult = gameDifficulty === 'fasil' ? 1 : gameDifficulty === 'mwayen' ? 1.5 : 2;
                       const adjusted = Math.round(score * mult);
-                      if (prize && onBalanceUpdate && currentUser) {
-                        onBalanceUpdate({ ...currentUser, balance: currentUser.balance + prize });
+                      if (currentUser) {
+                        api.playGame(activePlayingGame.id, currentUser.id, adjusted, prize, true)
+                          .then((res) => { if (res.success && res.user) onBalanceUpdate(res.user); })
+                          .catch(console.error);
                       }
                       setActivePlayingGame(null);
                     }}
@@ -264,8 +463,10 @@ export const GamesView: React.FC<GamesViewProps> = ({
                     onGameOver={(score, prize) => {
                       const mult = gameDifficulty === 'fasil' ? 1 : gameDifficulty === 'mwayen' ? 1.5 : 2;
                       const adjusted = Math.round(score * mult);
-                      if (prize && onBalanceUpdate && currentUser) {
-                        onBalanceUpdate({ ...currentUser, balance: currentUser.balance + prize });
+                      if (currentUser) {
+                        api.playGame(activePlayingGame.id, currentUser.id, adjusted, prize, true)
+                          .then((res) => { if (res.success && res.user) onBalanceUpdate(res.user); })
+                          .catch(console.error);
                       }
                       setActivePlayingGame(null);
                     }}
@@ -280,8 +481,10 @@ export const GamesView: React.FC<GamesViewProps> = ({
                     onGameOver={(score, prize) => {
                       const mult = gameDifficulty === 'fasil' ? 1 : gameDifficulty === 'mwayen' ? 1.5 : 2;
                       const adjusted = Math.round(score * mult);
-                      if (prize && onBalanceUpdate && currentUser) {
-                        onBalanceUpdate({ ...currentUser, balance: currentUser.balance + prize });
+                      if (currentUser) {
+                        api.playGame(activePlayingGame.id, currentUser.id, adjusted, prize, true)
+                          .then((res) => { if (res.success && res.user) onBalanceUpdate(res.user); })
+                          .catch(console.error);
                       }
                       setActivePlayingGame(null);
                     }}
@@ -451,9 +654,15 @@ const GameItemCard: React.FC<{ game: Game; onPlay: () => void }> = ({ game, onPl
         </div>
         <div className="text-right">
           <span
-            className={`inline-block text-[11px] font-black uppercase px-2.5 py-0.5 rounded-lg border ${theme.badge}`}
+            className={`inline-block text-[11px] font-black uppercase px-2.5 py-0.5 rounded-lg border ${
+              game.category === 'avioncrash'
+                ? theme.badge
+                : game.entryFee > 0
+                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+            }`}
           >
-            {game.category === 'avioncrash' ? '💵 VRÈ LAJAN' : game.isPaid ? `${game.entryFee} HT` : 'Gratis'}
+            {game.category === 'avioncrash' ? '💵 VRÈ LAJAN' : game.entryFee > 0 ? `${game.entryFee} HT` : 'Gratis'}
           </span>
           <div className="text-[10px] text-amber-400 font-bold mt-1">
             {game.category === 'avioncrash' ? 'Miz 10 - 5,000 HT' : `${game.levelsCount || 6} Nivo Disponib`}
@@ -490,6 +699,10 @@ const GameItemCard: React.FC<{ game: Game; onPlay: () => void }> = ({ game, onPl
           className={`w-full py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-40 ${
             game.category === 'avioncrash'
               ? 'bg-gradient-to-r from-amber-500 via-rose-500 to-yellow-500 hover:brightness-110 text-slate-950 font-black shadow-lg shadow-amber-500/25'
+              : !game.isActive
+              ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+              : game.entryFee > 0
+              ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black shadow-md'
               : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white'
           }`}
         >
@@ -497,9 +710,11 @@ const GameItemCard: React.FC<{ game: Game; onPlay: () => void }> = ({ game, onPl
           <span>
             {game.category === 'avioncrash'
               ? 'JWE AK VRÈ LAJAN ❯'
-              : game.isActive
-              ? `Jwe (${game.levelsCount || 6} Nivo)`
-              : 'Fèmen'}
+              : !game.isActive
+              ? 'Jwèt Fèmen'
+              : game.entryFee > 0
+              ? `Peye ${game.entryFee} HT pou Jwe`
+              : 'Jwe Gratis'}
           </span>
         </button>
       </div>
@@ -516,22 +731,45 @@ const ActiveGameEngineWrapper: React.FC<{
   onBalanceUpdate: (newUser: User) => void;
   onExit: () => void;
 }> = ({ game, currentUser, onOpenDeposit, onOpenAuth, onBalanceUpdate, onExit }) => {
-  const [gameState, setGameState] = useState<'ready' | 'playing' | 'gameover'>('ready');
+  const [gameState, setGameState] = useState<'ready' | 'playing' | 'gameover'>('playing');
   const [score, setScore] = useState(0);
   const [levelReached, setLevelReached] = useState(1);
   const [playError, setPlayError] = useState('');
   const [awardedPrize, setAwardedPrize] = useState<number | null>(null);
   const [difficulty, setDifficulty] = useState<'fasil' | 'mwayen' | 'difisil'>('fasil');
+  const [isProcessingReplay, setIsProcessingReplay] = useState(false);
 
-  const startPlaying = () => {
+  const startPlaying = async () => {
     if (!currentUser) {
       onOpenAuth();
       return;
     }
 
-    if (game.isPaid && currentUser.balance < game.entryFee) {
-      setPlayError(`Balans ou (${currentUser.balance} HT) pa ase pou peye ${game.entryFee} HT. Tanpri fè yon depo sou NatCash.`);
-      return;
+    // If restarting / replaying a game that has an admin entry fee
+    const fee = Math.max(0, Number(game.entryFee) || 0);
+    if (gameState === 'gameover' && fee > 0) {
+      if (currentUser.balance < fee) {
+        setPlayError(`Balans ou (${currentUser.balance} HT) pa ase pou peye frè ${fee} HT la pou w rejwe. Tanpri fè yon depo sou NatCash.`);
+        return;
+      }
+
+      try {
+        setIsProcessingReplay(true);
+        setPlayError('');
+        const res = await api.payGameEntry(game.id, currentUser.id);
+        if (!res.success || !res.user) {
+          setPlayError(res.error || 'Erè pandan dediksyon frè jwèt la.');
+          setIsProcessingReplay(false);
+          return;
+        }
+        onBalanceUpdate(res.user);
+      } catch (err: any) {
+        setPlayError(err.message || 'Erè rezo pandan peman frè jwèt la.');
+        setIsProcessingReplay(false);
+        return;
+      } finally {
+        setIsProcessingReplay(false);
+      }
     }
 
     setPlayError('');
@@ -552,7 +790,8 @@ const ActiveGameEngineWrapper: React.FC<{
 
       if (currentUser) {
         try {
-          const res = await api.playGame(game.id, currentUser.id, finalScore, wonPrize);
+          // Entry fee was already deducted on game start or replay, so pass skipFee: true
+          const res = await api.playGame(game.id, currentUser.id, finalScore, wonPrize, true);
           if (res.success && res.user) {
             onBalanceUpdate(res.user);
           }

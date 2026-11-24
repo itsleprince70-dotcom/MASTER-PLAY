@@ -3,6 +3,8 @@ import { X, ArrowDownRight, ArrowUpRight, Copy, Check, ShieldCheck, AlertCircle,
 import { User, Transaction } from '../types';
 import { api } from '../services/api';
 import { WhatsAppSupportButton } from './WhatsAppSupportButton';
+import { notify } from './Toast';
+import { uploadMediaToFirebaseStorage } from '../services/firebaseSync';
 
 interface NatCashModalProps {
   isOpen: boolean;
@@ -50,18 +52,27 @@ export const NatCashModal: React.FC<NatCashModalProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleProofUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProofUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 8 * 1024 * 1024) {
-        alert('Foto a twò lou. Tanpri chwazi yon imaj ki pi piti pase 8MB.');
-        return;
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      notify('Foto a twò lou. Tanpri chwazi yon imaj ki pi piti pase 8MB.', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setProofImage((prev) => prev || (reader.result as string));
+    };
+    reader.readAsDataURL(file);
+
+    try {
+      const cloudUrl = await uploadMediaToFirebaseStorage(file, 'proofs', file.name);
+      if (cloudUrl) {
+        setProofImage(cloudUrl);
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProofImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    } catch {
+      // Keep local dataUrl fallback
     }
   };
 

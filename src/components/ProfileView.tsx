@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { User, Transaction, Competition } from '../types';
 import { api } from '../services/api';
-import { User as UserIcon, Shield, Camera, Lock, ArrowDownRight, ArrowUpRight, Trophy, Bell, Settings, LogOut, Check, AlertCircle, RefreshCw, Star, Heart, Gift, Flame, CheckCircle2 } from 'lucide-react';
+import { User as UserIcon, Shield, Camera, Lock, ArrowDownRight, ArrowUpRight, Trophy, Bell, Settings, LogOut, Check, AlertCircle, RefreshCw, Star, Heart, Gift, Flame, CheckCircle2, Sparkles, Plus } from 'lucide-react';
 import { WhatsAppSupportButton } from './WhatsAppSupportButton';
+import { MonetizationModal } from './MonetizationModal';
+import { VerifiedBadge } from './VerifiedBadge';
+import { uploadMediaToFirebaseStorage } from '../services/firebaseSync';
 
 interface ProfileViewProps {
   user: User;
@@ -12,6 +15,7 @@ interface ProfileViewProps {
   onOpenWithdraw: () => void;
   onOpenTransactions: () => void;
   onOpenNotifications: () => void;
+  onOpenCreatePost?: () => void;
   onUpdateUser: (user: User) => void;
   onLogout: () => void;
 }
@@ -24,10 +28,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onOpenWithdraw,
   onOpenTransactions,
   onOpenNotifications,
+  onOpenCreatePost,
   onUpdateUser,
   onLogout,
 }) => {
   const [activeModal, setActiveModal] = useState<'none' | 'edit_profile' | 'change_pin'>('none');
+  const [showMonetizationModal, setShowMonetizationModal] = useState(false);
 
   // Edit Profile state
   const [newName, setNewName] = useState(user.fullName);
@@ -47,15 +53,27 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const availableBalance = user.balance - (user.reservedBalance || 0);
   const starCount = Math.min(5, Math.max(1, user.stars || user.level || 1));
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setNewPhoto(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    setProfileLoading(true);
+    try {
+      const cloudUrl = await uploadMediaToFirebaseStorage(file, 'profiles', file.name);
+      if (cloudUrl) {
+        setNewPhoto(cloudUrl);
+        return;
+      }
+    } catch {
+      // Fall through to FileReader
+    } finally {
+      setProfileLoading(false);
     }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setNewPhoto(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -140,6 +158,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           <div className="text-center sm:text-left flex-1">
             <div className="flex items-center justify-center sm:justify-start gap-2">
               <h1 className="text-2xl font-black text-white">{user.fullName}</h1>
+              <VerifiedBadge verified={Boolean(user.verified || user.certificationStatus === 'sètifye' || user.role === 'ADMIN' || user.isAdmin)} size="md" />
               {user.isOnline && (
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 ring-4 ring-emerald-500/20" title="An liy" />
               )}
@@ -157,6 +176,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             </div>
 
             <p className="text-xs text-slate-400 mt-1 font-medium">{user.phoneNumber}</p>
+            {user.masterPlayId && (
+              <div className="mt-1 flex items-center justify-center sm:justify-start">
+                <span className="font-mono text-[11px] font-bold text-cyan-300 bg-cyan-500/10 border border-cyan-500/30 px-2.5 py-0.5 rounded-full">
+                  ID: {user.masterPlayId}
+                </span>
+              </div>
+            )}
             <div className="flex items-center justify-center sm:justify-start gap-2 mt-2">
               <span className="text-[11px] text-slate-500">
                 Manm depi:{' '}
@@ -165,19 +191,39 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   year: 'numeric',
                 })}
               </span>
-              <span className="text-[11px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                Kont Verifye
-              </span>
+              {user.certificationStatus === 'sètifye' || user.role === 'ADMIN' || user.isAdmin ? (
+                <span className="text-[11px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                  Kont Sètifye
+                </span>
+              ) : (
+                <span className="text-[11px] text-amber-300 font-bold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
+                  Poko Sètifye (An atant Admin)
+                </span>
+              )}
+              {user.isMonetized && (
+                <span className="text-[11px] text-amber-300 font-black bg-gradient-to-r from-amber-500/20 to-yellow-500/20 px-2 py-0.5 rounded-full border border-amber-500/40 flex items-center gap-1 shadow-sm">
+                  ⭐ Kreyatè Monetize
+                </span>
+              )}
             </div>
           </div>
 
-          {/* Edit button */}
-          <button
-            onClick={() => setActiveModal('edit_profile')}
-            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-colors border border-slate-700 shrink-0"
-          >
-            Chanje foto / non
-          </button>
+          {/* Action buttons */}
+          <div className="flex flex-col gap-2 shrink-0 w-full sm:w-auto">
+            <button
+              onClick={() => setActiveModal('edit_profile')}
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-colors border border-slate-700 text-center"
+            >
+              Chanje foto / non
+            </button>
+            <button
+              onClick={() => setShowMonetizationModal(true)}
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 text-xs font-black transition-all shadow-md flex items-center justify-center gap-1.5 active:scale-95 text-center"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Monetizasyon</span>
+            </button>
+          </div>
         </div>
 
         {/* Balance Card Section */}
@@ -229,12 +275,19 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-1">
           <div className="p-3 rounded-2xl bg-[#0B0F19] border border-slate-800/80 text-center">
-            <div className="text-[10px] text-slate-400 font-bold uppercase">Fanatik / Followers</div>
+            <div className="text-[10px] text-slate-400 font-bold uppercase">Abòne / Fanatik</div>
             <div className="text-lg font-black text-rose-400 mt-0.5 flex items-center justify-center gap-1">
               <Heart className="w-4 h-4 fill-rose-500/30 text-rose-400" />
               <span>{user.followersCount?.toLocaleString() || 0}</span>
+            </div>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-[#0B0F19] border border-slate-800/80 text-center">
+            <div className="text-[10px] text-slate-400 font-bold uppercase">W ap Swiv</div>
+            <div className="text-lg font-black text-cyan-400 mt-0.5">
+              <span>{user.followingCount?.toLocaleString() || (user.followingIds ? user.followingIds.length : 0)}</span>
             </div>
           </div>
 
@@ -526,6 +579,28 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Creator Monetization Modal */}
+      <MonetizationModal
+        isOpen={showMonetizationModal}
+        onClose={() => setShowMonetizationModal(false)}
+        currentUser={user}
+        onUserUpdate={onUpdateUser}
+        onOpenDeposit={onOpenDeposit}
+      />
+
+      {/* Round "+" Button (PUBLICATION) - Bottom Center */}
+      <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center">
+        <button
+          onClick={() => onOpenCreatePost?.()}
+          className="h-12 px-5 rounded-full bg-gradient-to-tr from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 shadow-2xl shadow-amber-500/40 flex items-center justify-center gap-2 transition-transform active:scale-95 border-2 border-white/25 font-black text-xs uppercase tracking-wider"
+          title="Kreye Publication"
+          aria-label="Kreye Publication"
+        >
+          <Plus className="w-5 h-5 stroke-[3]" />
+          <span>Publication</span>
+        </button>
+      </div>
     </div>
   );
 };

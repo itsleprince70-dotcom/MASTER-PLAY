@@ -1,7 +1,7 @@
 import React from 'react';
 import { MasterPlayLogo } from './MasterPlayLogo';
 import { User, NotificationItem } from '../types';
-import { Home, User as UserIcon, Trophy, Gamepad2, Award, Bell, Shield, ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { Home, User as UserIcon, Trophy, Gamepad2, Award, Bell, Shield, ArrowDownRight, ArrowUpRight, Smartphone } from 'lucide-react';
 
 export type TabType = 'akey' | 'pwofil' | 'konpetisyon' | 'jwet' | 'klasman';
 
@@ -15,6 +15,7 @@ interface NavigationProps {
   onOpenDeposit: () => void;
   onOpenWithdraw: () => void;
   onOpenAuth: () => void;
+  onOpenAndroidApp?: () => void;
 }
 
 export const Navigation: React.FC<NavigationProps> = ({
@@ -27,6 +28,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   onOpenDeposit,
   onOpenWithdraw,
   onOpenAuth,
+  onOpenAndroidApp,
 }) => {
   const unreadCount = notifications.filter((n) => !n.isRead).length;
   const availableBalance = currentUser ? currentUser.balance - (currentUser.reservedBalance || 0) : 0;
@@ -35,15 +37,74 @@ export const Navigation: React.FC<NavigationProps> = ({
     <>
       {/* Top App Header */}
       <header className="sticky top-0 z-40 bg-[#0B0F19]/90 backdrop-blur-md border-b border-slate-800/80 px-4 sm:px-6 py-2.5">
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
           
           {/* Brand Wordmark & Logo */}
-          <div className="cursor-pointer" onClick={() => onSelectTab('akey')}>
+          <div className="cursor-pointer shrink-0" onClick={() => onSelectTab('akey')}>
             <MasterPlayLogo size="sm" showSubtitle={false} showTagline={false} />
           </div>
 
+          {/* Desktop Central Website Navigation Menu */}
+          <nav className="hidden md:flex items-center gap-1 bg-slate-900/60 p-1 rounded-2xl border border-slate-800/80">
+            <button
+              onClick={() => onSelectTab('akey')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                currentTab === 'akey'
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Home className="w-4 h-4" />
+              <span>Akèy</span>
+            </button>
+            <button
+              onClick={() => onSelectTab('konpetisyon')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                currentTab === 'konpetisyon'
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Trophy className="w-4 h-4" />
+              <span>Konpetisyon</span>
+            </button>
+            <button
+              onClick={() => onSelectTab('jwet')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                currentTab === 'jwet'
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Gamepad2 className="w-4 h-4" />
+              <span>Jwèt</span>
+            </button>
+            <button
+              onClick={() => onSelectTab('klasman')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                currentTab === 'klasman'
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Award className="w-4 h-4" />
+              <span>Klasman</span>
+            </button>
+            <button
+              onClick={() => onSelectTab('pwofil')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                currentTab === 'pwofil'
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <UserIcon className="w-4 h-4" />
+              <span>Pwofil</span>
+            </button>
+          </nav>
+
           {/* Right Header Zone: Balance / Auth / Notif / Admin */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {currentUser ? (
               <>
                 {/* Balance pill / button */}
@@ -94,11 +155,23 @@ export const Navigation: React.FC<NavigationProps> = ({
               </button>
             )}
 
+            {/* Android App Gateway Button */}
+            {onOpenAndroidApp && (
+              <button
+                onClick={onOpenAndroidApp}
+                className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-gradient-to-r from-emerald-500/15 to-teal-500/15 hover:from-emerald-500/25 hover:to-teal-500/25 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 text-xs font-bold transition-all active:scale-95 shadow-sm"
+                title="Aplikasyon Android & Android Studio"
+              >
+                <Smartphone className="w-4 h-4 text-emerald-400" />
+                <span className="hidden sm:inline">Android</span>
+              </button>
+            )}
+
             {/* Admin Portal Gateway Button */}
             <button
               onClick={onOpenAdmin}
               className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-slate-800/60 hover:bg-amber-500/20 text-slate-400 hover:text-amber-400 transition-all border border-slate-800 hover:border-amber-500/30 flex items-center gap-1.5 text-xs font-bold"
-              title="Espas Administrasyon (Prince509)"
+              title="Espas Administrasyon"
             >
               <Shield className="w-4 h-4" />
               <span className="hidden md:inline">Admin</span>
@@ -107,8 +180,8 @@ export const Navigation: React.FC<NavigationProps> = ({
         </div>
       </header>
 
-      {/* Fixed Bottom Tab Navigation Bar (5 tabs matching Screen 2 in image!) */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#0B0F19]/95 backdrop-blur-lg border-t border-slate-800/90 pb-safe">
+      {/* Fixed Bottom Tab Navigation Bar (Mobile only, hidden on desktop screens) */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0B0F19]/95 backdrop-blur-lg border-t border-slate-800/90 pb-safe">
         <div className="max-w-md mx-auto grid grid-cols-5 h-16 items-center px-1">
           {/* 1. Akèy */}
           <button

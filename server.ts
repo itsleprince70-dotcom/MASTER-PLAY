@@ -11,10 +11,16 @@ const __dirname = path.dirname(__filename);
 
 const DATA_DIR = path.resolve(__dirname, 'data');
 const DB_FILE = path.resolve(DATA_DIR, 'db.json');
+const DB_BACKUP_FILE = path.resolve(DATA_DIR, 'db_backup.json');
+const USERS_VAULT_FILE = path.resolve(DATA_DIR, 'db_users_vault.json');
+const BACKUP_DIR = path.resolve(DATA_DIR, 'backups');
 
-// Ensure data folder exists
+// Ensure data and backup folders exist
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+if (!fs.existsSync(BACKUP_DIR)) {
+  fs.mkdirSync(BACKUP_DIR, { recursive: true });
 }
 
 // Database schema interface
@@ -31,8 +37,11 @@ interface DBState {
     level: number;
     stars?: number;
     followersCount?: number;
+    followingCount?: number;
     followingIds?: string[];
     followerIds?: string[];
+    favoritePostIds?: string[];
+    lastPostDate?: string;
     giftsReceivedCount?: number;
     giftsReceivedValue?: number;
     matchesWon?: number;
@@ -43,7 +52,71 @@ interface DBState {
     levelHistory?: Array<{ level: number; date: string; reason: string }>;
     createdAt: string;
     isGoogleUser?: boolean;
+    email?: string;
+    googleId?: string;
+    username?: string;
+    isVerifiedInDatabase?: boolean;
+    verifiedInDatabaseAt?: string;
+    isMonetized?: boolean;
+    monetizationStatus?: 'none' | 'an_atant' | 'aksepte' | 'refize' | 'active' | 'pending' | 'rejected' | 'suspended';
+    monetizationRequestedAt?: string;
+    monetizationApprovedAt?: string;
+    totalEarnings?: number;
+    availableEarnings?: number;
+    paidEarnings?: number;
+    monetizedLikesCount?: number;
+    followerMilestonePaid?: boolean;
+    masterPlayId?: string;
+    firstName?: string;
+    lastName?: string;
+    role?: 'USER' | 'ADMIN';
+    isAdmin?: boolean;
+    certificationStatus?: 'non_sètifye' | 'sètifye';
+    verified?: boolean;
+    certifiedAt?: string;
+    certifiedBy?: string;
+    firebaseUid?: string;
   }>;
+  idGenerator?: {
+    nextCounter: number;
+    totalCapacity: number;
+    allocatedIds: Record<string, string>;
+  };
+  adminSessions?: Record<string, { userId: string; createdAt: string }>;
+  globalMemory?: {
+    schemaVersion: number;
+    dataVersion: number;
+    lastUpdatedAt: string;
+    lastBackupAt?: string;
+    lastBackupVersion?: number;
+    backupSnapshots: Array<{
+      version: number;
+      createdAt: string;
+      fileName: string;
+      usersCount: number;
+      postsCount: number;
+      checksum: string;
+    }>;
+    events: Array<{
+      eventId: string;
+      userId: string;
+      actionType: string;
+      dateTime: string;
+      serverTimestamp: number;
+      pageOrFeature: string;
+      result: 'success' | 'error' | 'pending';
+      data?: Record<string, any>;
+      clientMutationId?: string;
+    }>;
+    syncErrors: Array<{
+      id: string;
+      userId?: string;
+      actionType: string;
+      error: string;
+      timestamp: string;
+    }>;
+    processedMutationIds: string[];
+  };
   competitions: Array<{
     id: string;
     name: string;
@@ -179,6 +252,17 @@ interface DBState {
       second?: { userId: string; name: string; prize: string };
       third?: { userId: string; name: string; prize: string };
     };
+    prizesPaid?: {
+      first?: boolean;
+      second?: boolean;
+      third?: boolean;
+      firstPaidAt?: string;
+      secondPaidAt?: string;
+      thirdPaidAt?: string;
+      firstRecipientId?: string;
+      secondRecipientId?: string;
+      thirdRecipientId?: string;
+    };
   }>;
   gifts: Array<{
     id: string;
@@ -230,7 +314,11 @@ interface DBState {
     videoUrl?: string;
     tiktokUrl?: string;
     author?: string;
+    authorId?: string;
+    authorName?: string;
+    authorPhoto?: string;
     likes: string[]; // user IDs
+    favorites?: string[]; // user IDs
     comments: Array<{
       id: string;
       userId: string;
@@ -241,6 +329,8 @@ interface DBState {
     }>;
     createdAt: string;
     pinned?: boolean;
+    viewsCount?: number;
+    sharesCount?: number;
   }>;
   games: Array<{
     id: string;
@@ -301,8 +391,12 @@ interface DBState {
   dailyLevelRecords?: Array<{
     id: string;
     competitionId: string;
+    competitionName?: string;
     userId: string;
+    userName?: string;
+    userPhone?: string;
     gameId: string;
+    gameTitle?: string;
     level: number;
     dayKey: string;
     score: number;
@@ -337,6 +431,107 @@ interface DBState {
     startTime: string;
     endTime?: string;
     seedHash?: string;
+  }>;
+  financialLedger?: Array<{
+    id: string;
+    userId: string;
+    type: string;
+    amount: number;
+    status: string;
+    source: string;
+    destination: string;
+    description: string;
+    referenceId: string;
+    createdAt: string;
+    metadata?: any;
+  }>;
+  depositRequests?: any[];
+  monetizationConfig?: {
+    isEnabled: boolean;
+    activationFee: number;
+    minFollowersRequired: number;
+    earningsPer1000Likes: number;
+    milestoneFollowersReward?: number;
+    followerMilestoneRequired?: number;
+    followerMilestoneBonus?: number;
+    minPayoutAmount?: number;
+    updatedAt?: string;
+  };
+  algorithmApprovals?: Array<{
+    id: string;
+    type: 'bloke_kont' | 'efase_piblikasyon' | 'peyman_monetizasyon' | 'chanje_balans' | string;
+    targetId: string;
+    targetName: string;
+    requestedAction: string;
+    amount?: number;
+    reason: string;
+    status: 'an_atant' | 'apwouve' | 'refize' | 'approved' | 'rejected' | string;
+    createdAt: string;
+    reviewedBy?: string;
+    reviewedAt?: string;
+    reviewNotes?: string;
+  }>;
+  liveStreams?: Array<{
+    id: string;
+    streamerId: string;
+    streamerName: string;
+    streamerPhoto: string;
+    title: string;
+    category: string;
+    status: 'active' | 'ended';
+    viewersCount: number;
+    viewerIds: string[];
+    likesCount: number;
+    giftsReceivedTotal: number;
+    streamerEarnings: number;
+    platformFee: number;
+    startedAt: string;
+    endedAt?: string;
+  }>;
+  liveComments?: Array<{
+    id: string;
+    streamId: string;
+    userId: string;
+    userName: string;
+    userPhoto: string;
+    text: string;
+    createdAt: string;
+    isMuted?: boolean;
+  }>;
+  liveGiftTransactions?: Array<{
+    id: string;
+    referenceId: string;
+    streamId: string;
+    senderId: string;
+    senderName: string;
+    senderPhoto?: string;
+    streamerId: string;
+    streamerName: string;
+    giftId: string;
+    giftName: string;
+    giftIcon: string;
+    giftPrice: number;
+    streamerAmount: number;
+    adminFee: number;
+    timestamp: string;
+  }>;
+  liveReports?: Array<{
+    id: string;
+    streamId: string;
+    reporterId: string;
+    reporterName: string;
+    targetType: 'stream' | 'comment' | 'user';
+    targetId: string;
+    reason: string;
+    status: 'nouvo' | 'trete' | 'rejete';
+    createdAt: string;
+  }>;
+  pushSubscriptions?: Array<{
+    id: string;
+    userId: string;
+    endpoint?: string;
+    subscription: any;
+    createdAt: string;
   }>;
 }
 
@@ -430,10 +625,10 @@ const defaultInitialState: DBState = {
     {
       id: 'post_1',
       title: 'Nou gen yon nouvo MASTER COUP ! Prepare tèt ou !',
-      description: 'Gwo konpetisyon mwa sa a louvri ofisyèlman. Tout plas yo ap ranpli rapid. Vizite TikTok nou pou gade videyo demonstrasyon an !',
+      description: 'Gwo konpetisyon mwa sa a louvri ofisyèlman. Tout plas yo ap ranpli rapid. Gade Vidéo Master nou pou gade videyo demonstrasyon an !',
       mediaType: 'image',
       mediaUrl: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=800&auto=format&fit=crop&q=80',
-      tiktokUrl: 'https://tiktok.com/@kekechallenge',
+      tiktokUrl: '',
       likes: ['usr_demo_1', 'usr_demo_2'],
       comments: [
         {
@@ -452,7 +647,7 @@ const defaultInitialState: DBState = {
       title: 'Regleman NatCash & Verifikasyon Prèv',
       description: 'Chak fwa w ap fè yon depo, toujou verifye nimewo +509 40987659 (MATHURIN KERLINDGE). Voye screenshot la dirèkteman nan aplikasyon an oswa sou WhatsApp nou pou verifikasyon rapid.',
       mediaType: 'none',
-      tiktokUrl: 'https://tiktok.com/@kekechallenge',
+      tiktokUrl: '',
       likes: ['usr_demo_2'],
       comments: [],
       createdAt: '2025-06-26T09:00:00Z',
@@ -1079,22 +1274,139 @@ function checkCompetitionTimeWindow(comp: any): { allowed: boolean; reason?: str
   return { allowed: true };
 }
 
-// Load DB
+// Explicit content moderation filter
+function moderatePostContent(title: string, description: string, mediaUrl?: string): { allowed: boolean; reason?: string } {
+  const combined = `${title || ''} ${description || ''} ${mediaUrl || ''}`.toLowerCase();
+
+  const explicitPatterns: RegExp[] = [
+    /\b(pòno|pònogra(fi|fik)?|pòn|porn|porno|pornography|pornographique)\b/i,
+    /\b(xxx|nsfw|sex(e|ual|y)?|seks|seksyèl)\b/i,
+    /\b(koko|zozo|vajen|penis|pénis|vagin)\b/i,
+    /\b(boudon\s+toutouni|kale\s+bounda|toutouni|tout\s+ouni|nu\s+intégral|nudité|nude|nudity)\b/i,
+    /\b(fè\s+sèks|fè\s+lanmou\s+an\s+dirèk|souse\s+zozo|souse\s+koko|fellation|blowjob|masturb(asyon|ation|er))\b/i,
+    /\b(onlyfans|xhamster|pornhub|xvideos|redtube|cam4)\b/i,
+    /\b(baise|salope|putain|baisodrome|hardcore\s+sex)\b/i
+  ];
+
+  for (const pattern of explicitPatterns) {
+    if (pattern.test(combined)) {
+      return {
+        allowed: false,
+        reason: 'Publication sa a pa ka pibliye paske li vyole règ kontni Master Play sou kontni seksyèl ak pònografi.'
+      };
+    }
+  }
+
+  return { allowed: true };
+}
+
+function allocateMasterPlayId(db: DBState, userId: string): string {
+  if (!db.idGenerator) {
+    db.idGenerator = {
+      nextCounter: 1,
+      totalCapacity: 1500000000,
+      allocatedIds: {},
+    };
+  }
+
+  let seq = db.idGenerator.nextCounter || 1;
+  let candidate = `MASTERPLAY-${String(seq).padStart(9, '0')}`;
+  while (
+    db.idGenerator.allocatedIds[candidate] ||
+    db.users.some((u) => u.masterPlayId === candidate)
+  ) {
+    seq += 1;
+    candidate = `MASTERPLAY-${String(seq).padStart(9, '0')}`;
+  }
+
+  db.idGenerator.nextCounter = seq + 1;
+  db.idGenerator.allocatedIds[candidate] = userId;
+  return candidate;
+}
+
+// Load DB with multi-tier permanence and Users Vault recovery
 function loadDB(): DBState {
   try {
-    if (!fs.existsSync(DB_FILE)) {
+    let rawData: DBState | null = null;
+    let fromBackup = false;
+
+    if (fs.existsSync(DB_FILE)) {
+      try {
+        rawData = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
+      } catch (readErr) {
+        console.error('Failed reading primary db.json, attempting backup...', readErr);
+      }
+    }
+
+    if (!rawData && fs.existsSync(DB_BACKUP_FILE)) {
+      try {
+        rawData = JSON.parse(fs.readFileSync(DB_BACKUP_FILE, 'utf-8'));
+        fromBackup = true;
+      } catch (bErr) {
+        console.error('Failed reading db_backup.json:', bErr);
+      }
+    }
+
+    if (!rawData) {
       saveDB(defaultInitialState);
       return defaultInitialState;
     }
-    const data: DBState = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
-    let modified = false;
+
+    const data: DBState = rawData;
+    let modified = fromBackup;
+
+    if (!data.users) {
+      data.users = [];
+      modified = true;
+    }
+
+    // Permanent Users Vault Merge: ensures user accounts NEVER disappear
+    if (fs.existsSync(USERS_VAULT_FILE)) {
+      try {
+        const vaultUsers: any[] = JSON.parse(fs.readFileSync(USERS_VAULT_FILE, 'utf-8'));
+        if (Array.isArray(vaultUsers) && vaultUsers.length > 0) {
+          vaultUsers.forEach(vUser => {
+            const cleanVPhone = (vUser.phoneNumber || '').replace(/\D/g, '');
+            const existingIdx = data.users.findIndex(u =>
+              u.id === vUser.id || (cleanVPhone && (u.phoneNumber || '').replace(/\D/g, '') === cleanVPhone)
+            );
+            if (existingIdx === -1) {
+              data.users.push(vUser);
+              modified = true;
+            } else {
+              // Ensure enriched fields are retained
+              if (!data.users[existingIdx].favoritePostIds && vUser.favoritePostIds) {
+                data.users[existingIdx].favoritePostIds = vUser.favoritePostIds;
+                modified = true;
+              }
+              if (!data.users[existingIdx].followingIds && vUser.followingIds) {
+                data.users[existingIdx].followingIds = vUser.followingIds;
+                modified = true;
+              }
+              if (!data.users[existingIdx].followerIds && vUser.followerIds) {
+                data.users[existingIdx].followerIds = vUser.followerIds;
+                modified = true;
+              }
+              if (!data.users[existingIdx].certificationStatus && vUser.certificationStatus) {
+                data.users[existingIdx].certificationStatus = vUser.certificationStatus;
+                data.users[existingIdx].verified = vUser.verified ?? (vUser.certificationStatus === 'sètifye');
+                data.users[existingIdx].certifiedAt = vUser.certifiedAt;
+                data.users[existingIdx].certifiedBy = vUser.certifiedBy;
+                modified = true;
+              }
+            }
+          });
+        }
+      } catch (vaultErr) {
+        console.error('Error merging users vault:', vaultErr);
+      }
+    }
 
     // Ensure gifts exist
     if (!data.gifts || data.gifts.length === 0) {
       data.gifts = defaultInitialState.gifts;
       modified = true;
     } else {
-      // Ensure all default gifts are present
       defaultInitialState.gifts.forEach(dg => {
         if (!data.gifts.some(g => g.id === dg.id)) {
           data.gifts.push(dg);
@@ -1143,12 +1455,32 @@ function loadDB(): DBState {
       modified = true;
     }
 
-    // Ensure all users have enriched stats
+    if (!data.posts) {
+      data.posts = defaultInitialState.posts;
+      modified = true;
+    }
+
+    // Ensure posts have social fields
+    data.posts.forEach((p: any) => {
+      if (!p.likes) p.likes = [];
+      if (!p.favorites) p.favorites = [];
+      if (!p.comments) p.comments = [];
+      if (p.viewsCount === undefined) p.viewsCount = Math.floor(Math.random() * 80) + 12;
+      if (p.sharesCount === undefined) p.sharesCount = Math.floor(Math.random() * 15);
+      if (!p.authorId) {
+        p.authorId = 'usr_admin';
+        p.authorName = p.author || 'Admin Prince509';
+      }
+    });
+
+    // Ensure all users have enriched stats and permanent relationship arrays
     data.users.forEach((u: any) => {
       if (u.stars === undefined) { u.stars = Math.max(1, Math.min(5, u.level || 1)); modified = true; }
-      if (u.followersCount === undefined) { u.followersCount = Math.floor(Math.random() * 40) + 10; modified = true; }
       if (!u.followingIds) { u.followingIds = []; modified = true; }
       if (!u.followerIds) { u.followerIds = []; modified = true; }
+      if (u.followersCount === undefined) { u.followersCount = u.followerIds.length; modified = true; }
+      if (u.followingCount === undefined) { u.followingCount = u.followingIds.length; modified = true; }
+      if (!u.favoritePostIds) { u.favoritePostIds = []; modified = true; }
       if (u.giftsReceivedCount === undefined) { u.giftsReceivedCount = 0; modified = true; }
       if (u.giftsReceivedValue === undefined) { u.giftsReceivedValue = 0; modified = true; }
       if (u.matchesWon === undefined) { u.matchesWon = 0; modified = true; }
@@ -1158,7 +1490,43 @@ function loadDB(): DBState {
         u.levelHistory = [{ level: u.level || 1, date: u.createdAt || new Date().toISOString(), reason: 'Kreyasyon kont' }];
         modified = true;
       }
+      if (u.isMonetized === undefined) { u.isMonetized = false; modified = true; }
+      if (u.totalEarnings === undefined) { u.totalEarnings = 0; modified = true; }
+      if (u.availableEarnings === undefined) { u.availableEarnings = 0; modified = true; }
+      if (u.paidEarnings === undefined) { u.paidEarnings = 0; modified = true; }
+      if (u.monetizedLikesCount === undefined) { u.monetizedLikesCount = 0; modified = true; }
+      if (u.followerMilestonePaid === undefined) { u.followerMilestonePaid = false; modified = true; }
+      if (u.monetizationStatus === undefined) { u.monetizationStatus = 'none'; modified = true; }
     });
+
+    if (!data.monetizationConfig) {
+      data.monetizationConfig = {
+        isEnabled: true,
+        activationFee: 250,
+        minFollowersRequired: 1000,
+        earningsPer1000Likes: 500,
+        milestoneFollowersReward: 1000,
+        followerMilestoneRequired: 1000,
+        followerMilestoneBonus: 1000,
+        minPayoutAmount: 500,
+        updatedAt: new Date().toISOString()
+      };
+      modified = true;
+    } else {
+      if (data.monetizationConfig.followerMilestoneRequired === undefined) data.monetizationConfig.followerMilestoneRequired = 1000;
+      if (data.monetizationConfig.followerMilestoneBonus === undefined) data.monetizationConfig.followerMilestoneBonus = 1000;
+      if (data.monetizationConfig.minPayoutAmount === undefined) data.monetizationConfig.minPayoutAmount = 500;
+    }
+
+    if (!data.financialLedger) {
+      data.financialLedger = [];
+      modified = true;
+    }
+
+    if (!data.algorithmApprovals) {
+      data.algorithmApprovals = [];
+      modified = true;
+    }
 
     // Ensure all 12 official games are present without wiping any existing data
     defaultInitialState.games.forEach((officialGame) => {
@@ -1171,7 +1539,7 @@ function loadDB(): DBState {
       }
     });
 
-    // Ensure all competitions have enriched fields
+    // Ensure all competitions have enriched fields and matches
     const allGameIds = data.games.map(g => g.id);
     data.competitions.forEach((comp: any) => {
       if (!comp.authorizedGameIds || comp.authorizedGameIds.length === 0) {
@@ -1207,7 +1575,7 @@ function loadDB(): DBState {
         modified = true;
       }
       if (comp.votePrice === undefined) {
-        comp.votePrice = 15; // 15 HTG initial price
+        comp.votePrice = 15;
         modified = true;
       }
       if (!comp.qualificationCount) {
@@ -1215,7 +1583,6 @@ function loadDB(): DBState {
         modified = true;
       }
 
-      // Check time expiry
       if (comp.endDateTimeISO) {
         const end = new Date(comp.endDateTimeISO);
         if (!isNaN(end.getTime()) && new Date() > end && comp.status !== 'Fini' && comp.status !== 'finished') {
@@ -1239,10 +1606,10 @@ function loadDB(): DBState {
       comp.matches.forEach((m: any) => {
         if (m.votingEnabled === undefined) m.votingEnabled = true;
         if (m.votePrice === undefined) m.votePrice = comp.votePrice || 15;
-        if (m.votes1 === undefined) m.votes1 = 12;
-        if (m.votes2 === undefined) m.votes2 = 9;
-        if (m.gifts1 === undefined) m.gifts1 = 3;
-        if (m.gifts2 === undefined) m.gifts2 = 2;
+        if (m.votes1 === undefined) m.votes1 = 14;
+        if (m.votes2 === undefined) m.votes2 = 11;
+        if (m.gifts1 === undefined) m.gifts1 = 4;
+        if (m.gifts2 === undefined) m.gifts2 = 3;
         if (m.player1) {
           if (m.player1.level === undefined) m.player1.level = 3;
           if (m.player1.stars === undefined) m.player1.stars = 3;
@@ -1260,37 +1627,197 @@ function loadDB(): DBState {
           if (m.player2.giftsCount === undefined) m.player2.giftsCount = m.gifts2;
         }
       });
+    });
 
-      // Seed initial participants for active competition demo so top 8 and matches are immediately testable
-      if (comp.id === 'comp_1' && (!comp.scores || comp.scores.length < 8)) {
-        const demoParticipants = [
-          { userId: 'usr_demo_1', fullName: 'Jean William', photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80', phone: '+509 40128456', total: 2850, l: 850, m: 700, me: 650, j: 650 },
-          { userId: 'usr_demo_2', fullName: 'Marie Carmelle', photo: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80', phone: '+509 37889922', total: 2720, l: 800, m: 720, me: 600, j: 600 },
-          { userId: 'usr_p3', fullName: 'Pierre Ronald', photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80', phone: '+509 44112233', total: 2540, l: 750, m: 690, me: 550, j: 550 },
-          { userId: 'usr_p4', fullName: 'Stanley Cadet', photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80', phone: '+509 33221100', total: 2480, l: 710, m: 650, me: 560, j: 560 },
-          { userId: 'usr_p5', fullName: 'Vanessa Joseph', photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80', phone: '+509 46554433', total: 2390, l: 680, m: 620, me: 540, j: 550 },
-          { userId: 'usr_p6', fullName: 'Mackenson Paul', photo: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80', phone: '+509 38998877', total: 2260, l: 640, m: 600, me: 510, j: 510 },
-          { userId: 'usr_p7', fullName: 'Frantz Desir', photo: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80', phone: '+509 41223344', total: 2150, l: 600, m: 580, me: 490, j: 480 },
-          { userId: 'usr_p8', fullName: 'Claudette Louis', photo: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80', phone: '+509 39445566', total: 2040, l: 590, m: 550, me: 450, j: 450 },
-          { userId: 'usr_p9', fullName: 'Kerby Saint-Vil', photo: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80', phone: '+509 42887766', total: 1890, l: 520, m: 500, me: 440, j: 430 },
-          { userId: 'usr_p10', fullName: 'Nathalie Bruno', photo: 'https://images.unsplash.com/photo-1534751516642-a171ed29c0e5?w=150&auto=format&fit=crop&q=80', phone: '+509 36778899', total: 1750, l: 490, m: 470, me: 400, j: 390 },
-        ];
+    if (!data.liveStreams) {
+      data.liveStreams = [
+        {
+          id: 'live_featured_1',
+          streamerId: 'usr_demo_1',
+          streamerName: 'Jean William',
+          streamerPhoto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+          title: '🔥 Kèkè Challenge Live - Finalis Match VS & Kado',
+          category: 'Gaming & Challenge',
+          status: 'active',
+          viewersCount: 28,
+          viewerIds: ['usr_1', 'usr_2'],
+          likesCount: 1420,
+          giftsReceivedTotal: 450,
+          streamerEarnings: 427.5,
+          platformFee: 22.5,
+          startedAt: new Date(Date.now() - 25 * 60 * 1000).toISOString()
+        }
+      ];
+      modified = true;
+    }
 
-        comp.scores = demoParticipants.map(dp => ({
-          userId: dp.userId,
-          fullName: dp.fullName,
-          phoneNumber: dp.phone,
-          profilePhoto: dp.photo,
-          scoresByGame: { game_football: Math.floor(dp.total / 3), game_basket: Math.floor(dp.total / 3), game_penalty: Math.floor(dp.total / 3) },
-          totalScore: dp.total,
-          dailyScores: { lendi: dp.l, madi: dp.m, mekredi: dp.me, jedi: dp.j },
-          registrationDate: '2025-06-21T10:00:00Z'
-        }));
+    if (!data.liveComments) {
+      data.liveComments = [
+        {
+          id: 'lcom_1',
+          streamId: 'live_featured_1',
+          userId: 'usr_2',
+          userName: 'Pierre Alex',
+          userPhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+          text: 'Bonjou tout moun! Jean William ap kraze jwèt la jodi a! 🔥',
+          createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString()
+        },
+        {
+          id: 'lcom_2',
+          streamId: 'live_featured_1',
+          userId: 'usr_3',
+          userName: 'Marie Carmelle',
+          userPhoto: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+          text: 'M voye yon Kè pou ou Jean! Bravooo! 💖',
+          createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString()
+        }
+      ];
+      modified = true;
+    }
 
-        comp.registeredUserIds = demoParticipants.map(dp => dp.userId);
+    if (!data.liveGiftTransactions) {
+      data.liveGiftTransactions = [];
+      modified = true;
+    }
+
+    if (!data.liveReports) {
+      data.liveReports = [];
+      modified = true;
+    }
+
+    if (!data.pushSubscriptions) {
+      data.pushSubscriptions = [];
+      modified = true;
+    }
+
+    if (!data.idGenerator) {
+      data.idGenerator = {
+        nextCounter: 1,
+        totalCapacity: 1500000000,
+        allocatedIds: {},
+      };
+      modified = true;
+    }
+
+    if (!data.adminSessions) {
+      data.adminSessions = {};
+      modified = true;
+    }
+
+    // Backfill masterPlayId for any existing user without one
+    data.users.forEach((u) => {
+      if (!u.masterPlayId) {
+        u.masterPlayId = allocateMasterPlayId(data, u.id);
         modified = true;
       }
+      if (!u.role) {
+        u.role = 'USER';
+      }
     });
+
+    // Ensure primary ADMIN account (40987659) exists on server
+    const adminPhoneClean = '40987659';
+    const existingAdminIdx = data.users.findIndex(
+      (u) => u.phoneNumber.replace(/\D/g, '').endsWith(adminPhoneClean)
+    );
+    const adminPinHash = hashPin('prince509');
+    if (existingAdminIdx === -1) {
+      const adminId = 'usr_admin_masterplay';
+      const adminUser: any = {
+        id: adminId,
+        masterPlayId: allocateMasterPlayId(data, adminId),
+        fullName: 'Administratè MASTER PLAY',
+        firstName: 'Administratè',
+        lastName: 'MASTER PLAY',
+        phoneNumber: adminPhoneClean,
+        pinHash: adminPinHash,
+        role: 'ADMIN',
+        isAdmin: true,
+        profilePhoto: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+        balance: 0,
+        reservedBalance: 0,
+        level: 5,
+        stars: 5,
+        points: 0,
+        followersCount: 0,
+        followingCount: 0,
+        followingIds: [],
+        followerIds: [],
+        favoritePostIds: [],
+        isOnline: true,
+        isVerifiedInDatabase: true,
+        verifiedInDatabaseAt: new Date().toISOString(),
+        certificationStatus: 'sètifye',
+        verified: true,
+        certifiedAt: new Date().toISOString(),
+        certifiedBy: 'Sistèm MASTER PLAY',
+        createdAt: new Date().toISOString(),
+      };
+      data.users.unshift(adminUser);
+      modified = true;
+    } else {
+      const adm = data.users[existingAdminIdx];
+      if (adm.role !== 'ADMIN' || !adm.isAdmin || adm.pinHash !== adminPinHash || adm.certificationStatus !== 'sètifye' || adm.verified !== true) {
+        adm.role = 'ADMIN';
+        adm.isAdmin = true;
+        adm.pinHash = adminPinHash;
+        adm.certificationStatus = 'sètifye';
+        adm.verified = true;
+        modified = true;
+      }
+    }
+
+    // Backfill certificationStatus and verified boolean for existing accounts
+    data.users.forEach((u) => {
+      if (!u.certificationStatus) {
+        if (u.role === 'ADMIN' || u.isAdmin || u.isVerifiedInDatabase) {
+          u.certificationStatus = 'sètifye';
+          u.verified = true;
+          if (!u.certifiedAt) u.certifiedAt = u.verifiedInDatabaseAt || u.createdAt;
+        } else {
+          u.certificationStatus = 'non_sètifye';
+          u.verified = false;
+        }
+        modified = true;
+      } else {
+        const expectedVerified = u.certificationStatus === 'sètifye' || u.role === 'ADMIN' || Boolean(u.isAdmin);
+        if (u.verified !== expectedVerified) {
+          u.verified = expectedVerified;
+          modified = true;
+        }
+      }
+    });
+
+    // Initialize & migrate Global App Memory structure without losing existing data
+    if (!data.globalMemory) {
+      data.globalMemory = {
+        schemaVersion: 1,
+        dataVersion: 1,
+        lastUpdatedAt: new Date().toISOString(),
+        backupSnapshots: [],
+        events: [],
+        syncErrors: [],
+        processedMutationIds: [],
+      };
+      modified = true;
+    } else {
+      if (!Array.isArray(data.globalMemory.backupSnapshots)) {
+        data.globalMemory.backupSnapshots = [];
+        modified = true;
+      }
+      if (!Array.isArray(data.globalMemory.events)) {
+        data.globalMemory.events = [];
+        modified = true;
+      }
+      if (!Array.isArray(data.globalMemory.syncErrors)) {
+        data.globalMemory.syncErrors = [];
+        modified = true;
+      }
+      if (!Array.isArray(data.globalMemory.processedMutationIds)) {
+        data.globalMemory.processedMutationIds = [];
+        modified = true;
+      }
+    }
 
     if (modified) {
       saveDB(data);
@@ -1302,14 +1829,190 @@ function loadDB(): DBState {
   }
 }
 
-// Atomic Save DB
+function sanitizeMemoryPayload(raw: any): Record<string, any> | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const blocked = new Set(['pin', 'pinhash', 'password', 'confirmpin', 'adminpin', 'admintoken', 'secret']);
+  const out: Record<string, any> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (blocked.has(k.toLowerCase())) continue;
+    if (typeof v === 'string' && v.length > 500) {
+      out[k] = v.slice(0, 500) + '...';
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
+function recordMemoryEvent(
+  db: DBState,
+  params: {
+    userId: string;
+    actionType: string;
+    pageOrFeature: string;
+    result?: 'success' | 'error' | 'pending';
+    data?: Record<string, any>;
+    clientMutationId?: string;
+  }
+) {
+  if (!db.globalMemory) {
+    db.globalMemory = {
+      schemaVersion: 1,
+      dataVersion: 1,
+      lastUpdatedAt: new Date().toISOString(),
+      backupSnapshots: [],
+      events: [],
+      syncErrors: [],
+      processedMutationIds: [],
+    };
+  }
+  const now = new Date();
+  const evt = {
+    eventId: 'evt_' + now.getTime() + '_' + Math.random().toString(36).substring(2, 7),
+    userId: params.userId || 'system',
+    actionType: params.actionType,
+    dateTime: now.toISOString(),
+    serverTimestamp: now.getTime(),
+    pageOrFeature: params.pageOrFeature,
+    result: params.result || 'success',
+    data: sanitizeMemoryPayload(params.data),
+    clientMutationId: params.clientMutationId,
+  };
+  db.globalMemory.events.unshift(evt);
+  if (db.globalMemory.events.length > 5000) {
+    db.globalMemory.events = db.globalMemory.events.slice(0, 5000);
+  }
+  return evt;
+}
+
+function createBackupSnapshot(data: DBState): {
+  version: number;
+  createdAt: string;
+  fileName: string;
+  usersCount: number;
+  postsCount: number;
+  checksum: string;
+} | null {
+  try {
+    if (!data.globalMemory) return null;
+    const version = data.globalMemory.dataVersion || 1;
+    const nowIso = new Date().toISOString();
+    const safeStamp = nowIso.replace(/[:.]/g, '-');
+    const fileName = `db_v${version}_${safeStamp}.json`;
+    const filePath = path.resolve(BACKUP_DIR, fileName);
+    const jsonStr = JSON.stringify(data, null, 2);
+    const checksum = crypto.createHash('sha256').update(jsonStr).digest('hex').slice(0, 16);
+    fs.writeFileSync(filePath, jsonStr, 'utf-8');
+
+    const meta = {
+      version,
+      createdAt: nowIso,
+      fileName,
+      usersCount: Array.isArray(data.users) ? data.users.length : 0,
+      postsCount: Array.isArray(data.posts) ? data.posts.length : 0,
+      checksum,
+    };
+    data.globalMemory.lastBackupAt = nowIso;
+    data.globalMemory.lastBackupVersion = version;
+    data.globalMemory.backupSnapshots.unshift(meta);
+    if (data.globalMemory.backupSnapshots.length > 10) {
+      const removed = data.globalMemory.backupSnapshots.splice(10);
+      removed.forEach((r) => {
+        try {
+          const oldPath = path.resolve(BACKUP_DIR, r.fileName);
+          if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+        } catch {}
+      });
+    }
+    return meta;
+  } catch (err) {
+    console.error('Error creating backup snapshot:', err);
+    return null;
+  }
+}
+
+// Atomic Save DB with corruption protection, versioning, continuous backup, and permanent Users Vault
 function saveDB(data: DBState): void {
   try {
+    if (!data || typeof data !== 'object' || !Array.isArray(data.users)) {
+      console.error('Refusing to save corrupted DB state (missing users array).');
+      return;
+    }
+
+    // Accidental wipe protection: refuse to overwrite populated DB with empty users array
+    if (data.users.length === 0 && fs.existsSync(DB_FILE)) {
+      try {
+        const existing = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
+        if (Array.isArray(existing?.users) && existing.users.length > 0) {
+          console.error('Refusing to overwrite populated db.json with empty users array!');
+          return;
+        }
+      } catch {}
+    }
+
+    if (!data.globalMemory) {
+      data.globalMemory = {
+        schemaVersion: 1,
+        dataVersion: 1,
+        lastUpdatedAt: new Date().toISOString(),
+        backupSnapshots: [],
+        events: [],
+        syncErrors: [],
+        processedMutationIds: [],
+      };
+    }
+    data.globalMemory.dataVersion = (data.globalMemory.dataVersion || 0) + 1;
+    data.globalMemory.lastUpdatedAt = new Date().toISOString();
+
+    if (data.globalMemory.dataVersion % 25 === 0) {
+      createBackupSnapshot(data);
+    }
+
     const tempFile = `${DB_FILE}.tmp`;
-    fs.writeFileSync(tempFile, JSON.stringify(data, null, 2), 'utf-8');
+    const jsonStr = JSON.stringify(data, null, 2);
+    fs.writeFileSync(tempFile, jsonStr, 'utf-8');
     fs.renameSync(tempFile, DB_FILE);
+
+    // 1. Continuous mirror backup
+    try {
+      fs.writeFileSync(DB_BACKUP_FILE, jsonStr, 'utf-8');
+    } catch (bErr) {
+      console.error('Error writing db_backup.json:', bErr);
+    }
+
+    // 2. Permanent Users Vault
+    try {
+      if (Array.isArray(data.users) && data.users.length > 0) {
+        fs.writeFileSync(USERS_VAULT_FILE, JSON.stringify(data.users, null, 2), 'utf-8');
+      }
+    } catch (vErr) {
+      console.error('Error writing db_users_vault.json:', vErr);
+    }
   } catch (err) {
     console.error('Error saving db.json:', err);
+  }
+}
+
+// Atomically save or update a single user in permanent Users Vault
+function saveUserToVault(user: any) {
+  try {
+    let vaultUsers: any[] = [];
+    if (fs.existsSync(USERS_VAULT_FILE)) {
+      try {
+        vaultUsers = JSON.parse(fs.readFileSync(USERS_VAULT_FILE, 'utf-8'));
+      } catch (e) {
+        vaultUsers = [];
+      }
+    }
+    const idx = vaultUsers.findIndex((u: any) => u.id === user.id);
+    if (idx >= 0) {
+      vaultUsers[idx] = { ...vaultUsers[idx], ...user };
+    } else {
+      vaultUsers.push(user);
+    }
+    fs.writeFileSync(USERS_VAULT_FILE, JSON.stringify(vaultUsers, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error in saveUserToVault:', err);
   }
 }
 
@@ -1321,8 +2024,32 @@ async function startServer() {
   app.use(express.json({ limit: '30mb' }));
   app.use(express.urlencoded({ extended: true, limit: '30mb' }));
 
+  // Gracefully catch malformed JSON bodies or bad URI encodings without leaking a raw 400 HTML page
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (err && (err instanceof SyntaxError || err instanceof URIError || err.status === 400)) {
+      if (req.path.startsWith('/api/')) {
+        return res.status(400).json({ error: 'Rekèt la pa valid (fòma JSON oswa URL envalid).' });
+      }
+      return res.redirect(302, '/');
+    }
+    return next(err);
+  });
+
+  // Guard against malformed percent-encoded URLs on page navigation
+  app.use((req, res, next) => {
+    try {
+      decodeURIComponent(req.path);
+      return next();
+    } catch {
+      if (req.path.startsWith('/api/')) {
+        return res.status(400).json({ error: 'URL la pa valid.' });
+      }
+      return res.redirect(302, '/');
+    }
+  });
+
   // Helper for audit logs
-  function logAudit(db: DBState, action: string, details: string, actor: string = 'Prince509') {
+  function logAudit(db: DBState, action: string, details: string, actor: string = 'Administratè') {
     db.auditLogs.unshift({
       id: 'log_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
       timestamp: new Date().toISOString(),
@@ -1333,6 +2060,58 @@ async function startServer() {
     if (db.auditLogs.length > 200) {
       db.auditLogs = db.auditLogs.slice(0, 200);
     }
+    recordMemoryEvent(db, {
+      userId: actor || 'system',
+      actionType: action,
+      pageOrFeature: 'MASTER PLAY System',
+      result: 'success',
+      data: { details },
+    });
+  }
+
+  // Robust helper to locate a user by unique ID, Firebase UID, Master Play ID, clean phone number, email, or Google ID
+  function findUserInDB(db: DBState, identifier?: string | null): any {
+    if (!identifier || typeof identifier !== 'string') return null;
+    const cleanId = identifier.trim();
+    if (!cleanId) return null;
+
+    // 1. Direct unique ID match (exact)
+    let user = db.users.find(u => u.id === cleanId);
+    if (user) return user;
+
+    // 2. Firebase UID match (permanent identity key)
+    user = db.users.find(u => u.firebaseUid && u.firebaseUid === cleanId);
+    if (user) return user;
+
+    // 3. MASTER PLAY ID match (case-insensitive)
+    user = db.users.find(u => u.masterPlayId && u.masterPlayId.toLowerCase() === cleanId.toLowerCase());
+    if (user) return user;
+
+    // 4. Case-insensitive ID match
+    user = db.users.find(u => u.id.toLowerCase() === cleanId.toLowerCase());
+    if (user) return user;
+
+    // 5. Email match (case-insensitive)
+    if (cleanId.includes('@')) {
+      user = db.users.find(u => (u.email || '').toLowerCase() === cleanId.toLowerCase());
+      if (user) return user;
+    }
+
+    // 6. Google ID match
+    user = db.users.find(u => u.googleId === cleanId);
+    if (user) return user;
+
+    // 7. Normalized Phone match (stripping spaces, dashes, parentheses)
+    const digitsOnly = cleanId.replace(/\D/g, '');
+    if (digitsOnly.length >= 8) {
+      user = db.users.find(u => {
+        const uDigits = (u.phoneNumber || '').replace(/\D/g, '');
+        return uDigits === digitsOnly || (digitsOnly.length === 8 && uDigits.endsWith(digitsOnly)) || (uDigits.length === 8 && digitsOnly.endsWith(uDigits));
+      });
+      if (user) return user;
+    }
+
+    return null;
   }
 
   // Helper for user notifications
@@ -1351,38 +2130,491 @@ async function startServer() {
     }
   }
 
+  // Central Financial Ledger (Requirements 11 & 12)
+  function recordFinancialLedger(
+    db: DBState,
+    entry: {
+      userId: string;
+      type: 'depot' | 'retrait' | 'frais_monetizasyon' | 'revni_likes' | 'bonis_abonné' | 'peman_revni' | 'transfe_balans' | 'frai_jwèt' | 'pri_konpetisyon';
+      amount: number;
+      status: 'pending' | 'completed' | 'rejected';
+      source: string;
+      destination: string;
+      description: string;
+      referenceId?: string;
+      metadata?: any;
+    }
+  ) {
+    if (!db.financialLedger) db.financialLedger = [];
+    const newEntry = {
+      id: 'ledg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      userId: entry.userId,
+      type: entry.type,
+      amount: entry.amount,
+      status: entry.status,
+      source: entry.source,
+      destination: entry.destination,
+      description: entry.description,
+      referenceId: entry.referenceId || ('REF-' + Date.now().toString(36).toUpperCase()),
+      createdAt: new Date().toISOString(),
+      metadata: entry.metadata || {}
+    };
+    db.financialLedger.unshift(newEntry);
+    if (db.financialLedger.length > 500) {
+      db.financialLedger = db.financialLedger.slice(0, 500);
+    }
+    return newEntry;
+  }
+
+  // Recalculate Monetization Earnings (Sections 7, 8, 9, 10)
+  function recalculateMonetizationEarnings(db: DBState, user: any) {
+    if (!user || (!user.isMonetized && user.monetizationStatus !== 'active')) return;
+    const config = db.monetizationConfig || {
+      activationFee: 250,
+      minFollowersRequired: 1000,
+      earningsPer1000Likes: 500,
+      followerMilestoneRequired: 1000,
+      followerMilestoneBonus: 1000,
+      minPayoutAmount: 500,
+      isEnabled: true
+    };
+
+    // Calculate total likes on all posts authored by user
+    const userPosts = (db.posts || []).filter(p => p.authorId === user.id);
+    const totalLikes = userPosts.reduce((acc, p) => acc + (p.likes ? p.likes.length : 0), 0);
+    user.monetizedLikesCount = totalLikes;
+
+    // Calculate earnings from likes (e.g. 500 G per 1000 likes)
+    const ratePer1000 = config.earningsPer1000Likes || 500;
+    const likeEarnings = Math.floor(totalLikes / 1000) * ratePer1000;
+
+    // Check 1,000 followers milestone bonus (awarded once)
+    const followers = user.followersCount || (user.followerIds ? user.followerIds.length : 0);
+    let milestoneBonus = 0;
+    if (followers >= (config.followerMilestoneRequired || 1000)) {
+      if (!user.followerMilestonePaid) {
+        user.followerMilestonePaid = true;
+        milestoneBonus = config.followerMilestoneBonus || 1000;
+        recordFinancialLedger(db, {
+          userId: user.id,
+          type: 'bonis_abonné',
+          amount: milestoneBonus,
+          status: 'completed',
+          source: 'Master Play Kreyatè Bonis',
+          destination: 'Balans Revni Kreyatè',
+          description: `Bonis etap 1,000 Abòne akòde pou kreyatè ${user.fullName || user.id}`
+        });
+        addNotification(
+          db,
+          user.id,
+          '🎉 Felisitasyon pou 1,000 Abòne !',
+          `Ou rive nan etap 1,000 abòne ! Ou resevwa yon bonis espesyal ${milestoneBonus} HT sou revni kreyatè ou.`,
+          'anons'
+        );
+      }
+    }
+
+    const previousPaid = user.paidEarnings || 0;
+    const milestoneTotal = user.followerMilestonePaid ? (config.followerMilestoneBonus || 1000) : 0;
+    user.totalEarnings = likeEarnings + milestoneTotal;
+    user.availableEarnings = Math.max(0, user.totalEarnings - previousPaid);
+
+    // Save to users vault
+    saveUserToVault(user);
+  }
+
+  // Clean Fake Accounts and Normalize Follow Lists
+  function cleanFakeAccounts(db: DBState): { removedCount: number; sanitizedFollowersCount: number } {
+    const validUserIds = new Set(db.users.map(u => u.id));
+    let removedCount = 0;
+
+    // Identify dummy or orphaned accounts if any
+    const genuineUsers = db.users.filter(u => {
+      const isFake = u.id.startsWith('dummy_') || u.id.startsWith('test_fake_');
+      if (isFake) {
+        removedCount++;
+        return false;
+      }
+      return true;
+    });
+
+    db.users = genuineUsers;
+    const currentValidIds = new Set(db.users.map(u => u.id));
+
+    // Sanitize follower and following lists for all remaining users
+    let sanitizedFollowersCount = 0;
+    db.users.forEach(u => {
+      if (u.followerIds) {
+        const origLen = u.followerIds.length;
+        u.followerIds = u.followerIds.filter((id: string) => currentValidIds.has(id));
+        if (origLen !== u.followerIds.length) sanitizedFollowersCount++;
+        u.followersCount = u.followerIds.length;
+      }
+      if (u.followingIds) {
+        u.followingIds = u.followingIds.filter((id: string) => currentValidIds.has(id));
+        u.followingCount = u.followingIds.length;
+      }
+      saveUserToVault(u);
+    });
+
+    return { removedCount, sanitizedFollowersCount };
+  }
+
+  // Algorithm Intelligence: Anomaly Detection, Health Score & Recommendations
+  function analyzeSystemData(db: DBState): {
+    healthScore: number;
+    anomalies: any[];
+    recommendations: any[];
+    approvals: any[];
+  } {
+    const anomalies: any[] = [];
+    const recommendations: any[] = [];
+
+    // 1. Check for duplicate phone numbers
+    const phoneMap = new Map<string, string[]>();
+    db.users.forEach(u => {
+      const p = (u.phoneNumber || '').replace(/\D/g, '');
+      if (p.length >= 8) {
+        if (!phoneMap.has(p)) phoneMap.set(p, []);
+        phoneMap.get(p)!.push(u.id);
+      }
+    });
+    phoneMap.forEach((uids, phone) => {
+      if (uids.length > 1) {
+        anomalies.push({
+          id: 'anom_dup_phone_' + phone,
+          type: 'duplicate_account',
+          severity: 'high',
+          description: `Plizyè kont detekte ak menm nimewo ${phone}: ${uids.join(', ')}`,
+          userId: uids[0],
+          timestamp: new Date().toISOString(),
+          status: 'detected'
+        });
+      }
+    });
+
+    // 2. Check for negative balances
+    db.users.forEach(u => {
+      if ((u.balance || 0) < 0) {
+        anomalies.push({
+          id: 'anom_neg_bal_' + u.id,
+          type: 'balance_discrepancy',
+          severity: 'critical',
+          description: `Itilizatè ${u.fullName} (${u.id}) gen yon balans negatif: ${u.balance} HT`,
+          userId: u.id,
+          timestamp: new Date().toISOString(),
+          status: 'detected'
+        });
+      }
+    });
+
+    // 3. Check for suspicious vote frequencies in Match VS
+    const voterMap = new Map<string, number>();
+    (db.votes || []).forEach(v => {
+      const key = `${v.voterId}_${v.matchId}`;
+      voterMap.set(key, (voterMap.get(key) || 0) + 1);
+    });
+    voterMap.forEach((cnt, key) => {
+      if (cnt > 1) {
+        const [voterId, matchId] = key.split('_');
+        anomalies.push({
+          id: 'anom_vote_' + key,
+          type: 'suspicious_votes',
+          severity: 'medium',
+          description: `Votè ${voterId} voye ${cnt} vòt sou match ${matchId}`,
+          userId: voterId,
+          timestamp: new Date().toISOString(),
+          status: 'detected'
+        });
+      }
+    });
+
+    // 4. Check for creators eligible for monetization
+    const eligibleCreators = db.users.filter(u => !u.isMonetized && (u.followersCount || 0) >= 1000);
+    if (eligibleCreators.length > 0) {
+      recommendations.push({
+        id: 'rec_monetize_eligible',
+        category: 'monetization',
+        title: `${eligibleCreators.length} Kreyatè Elijib pou Monetizasyon`,
+        description: `Gen ${eligibleCreators.length} kreyatè ki depase 1,000 abòne epi ki kalifye pou touche revni sou videyo yo.`,
+        actionLabel: 'Gade Kreyatè yo'
+      });
+    }
+
+    // 5. Check pending payments/deposits needing admin review
+    const pendingDeposits = (db.transactions || []).filter(t => t.type === 'depo' && t.status === 'an_atant');
+    if (pendingDeposits.length > 0) {
+      recommendations.push({
+        id: 'rec_pending_deposits',
+        category: 'finance',
+        title: `${pendingDeposits.length} Depo NatCash an Atant`,
+        description: `Verifye prèv tranzaksyon NatCash yo pou kredite balans jwè yo san reta.`,
+        actionLabel: 'Verifye Depo'
+      });
+    }
+
+    // Calculate overall health score
+    let healthScore = 100;
+    anomalies.forEach(a => {
+      if (a.severity === 'critical') healthScore -= 20;
+      else if (a.severity === 'high') healthScore -= 10;
+      else if (a.severity === 'medium') healthScore -= 5;
+      else healthScore -= 2;
+    });
+    healthScore = Math.max(10, Math.min(100, healthScore));
+
+    return {
+      healthScore,
+      anomalies,
+      recommendations,
+      approvals: db.algorithmApprovals || []
+    };
+  }
+
   // --- API ROUTES ---
 
   // Auth: Register
   app.post('/api/auth/register', (req, res) => {
-    const { fullName, phoneNumber, pin, profilePhoto } = req.body;
-    if (!fullName || !phoneNumber || !pin) {
-      return res.status(400).json({ error: 'Tanpri ranpli tout chan yo (Non konplè, Telefòn, Kòd).' });
+    const { firstName, lastName, fullName, phoneNumber, pin, profilePhoto, firebaseUid } = req.body;
+    const resolvedFullName = (fullName || `${firstName || ''} ${lastName || ''}`).trim();
+    if (!resolvedFullName || !phoneNumber || !pin) {
+      return res.status(400).json({ error: 'Tanpri ranpli tout chan yo (Non, Prénom, Telefòn, Modpas).' });
     }
 
     const cleanPhone = phoneNumber.trim();
+    const digitsOnly = cleanPhone.replace(/\D/g, '');
+    if (digitsOnly.length < 8) {
+      return res.status(400).json({ error: 'Nimewo telefòn nan pa valid. Li dwe gen omwen 8 chif.' });
+    }
+    if (String(pin).length < 4) {
+      return res.status(400).json({ error: 'Modpas la dwe gen omwen 4 karaktè.' });
+    }
+
     const db = loadDB();
 
-    const existingUser = db.users.find(u => u.phoneNumber.replace(/\s+/g, '') === cleanPhone.replace(/\s+/g, ''));
+    const existingUser = db.users.find(u => u.phoneNumber.replace(/\s+/g, '') === cleanPhone.replace(/\s+/g, '')) ||
+      (firebaseUid ? db.users.find(u => u.firebaseUid === firebaseUid) : undefined);
     if (existingUser) {
       return res.status(409).json({ error: 'Nimewo telefòn sa a deja gen yon kont. Tanpri konekte pito.' });
     }
 
     const nowIso = new Date().toISOString();
+    const newUserId = 'usr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    const masterPlayId = allocateMasterPlayId(db, newUserId);
     const newUser = {
-      id: 'usr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-      fullName: fullName.trim(),
+      id: newUserId,
+      firebaseUid: firebaseUid ? String(firebaseUid).trim() : undefined,
+      masterPlayId,
+      firstName: firstName ? String(firstName).trim() : resolvedFullName.split(' ')[0],
+      lastName: lastName ? String(lastName).trim() : resolvedFullName.split(' ').slice(1).join(' '),
+      fullName: resolvedFullName,
       phoneNumber: cleanPhone,
       pinHash: hashPin(pin),
+      role: 'USER' as const,
+      isAdmin: false,
       profilePhoto: profilePhoto || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
       balance: 50, // Welcome bonus of 50 HT
       welcomeBonusAwarded: true,
       reservedBalance: 0,
       level: 1,
+      stars: 1,
+      points: 0,
+      followersCount: 0,
+      followingCount: 0,
+      followingIds: [] as string[],
+      followerIds: [] as string[],
+      favoritePostIds: [] as string[],
+      matchesWon: 0,
+      matchesPlayed: 0,
+      votesReceived: 0,
+      isOnline: true,
+      isVerifiedInDatabase: true,
+      verifiedInDatabaseAt: nowIso,
+      certificationStatus: 'non_sètifye' as const,
+      verified: false,
+      isMonetized: false,
+      monetizationStatus: 'none' as const,
+      totalEarnings: 0,
+      availableEarnings: 0,
+      paidEarnings: 0,
+      monetizedLikesCount: 0,
+      followerMilestonePaid: false,
       createdAt: nowIso
     };
 
     db.users.push(newUser);
+    saveUserToVault(newUser);
+
+    // Record welcome bonus transaction in financial ledger
+    const bonusTx = {
+      id: 'tx_bonus_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      referenceId: generateRef('DEP'),
+      userId: newUser.id,
+      userName: newUser.fullName,
+      userPhone: newUser.phoneNumber,
+      type: 'depo' as const,
+      amount: 50,
+      natcashName: newUser.fullName,
+      natcashPhone: newUser.phoneNumber,
+      status: 'konfime' as const,
+      metadata: { reason: 'bonis_byenvini', description: 'Bonis byenvini 50 HT nan MASTER PLAY' },
+      createdAt: nowIso,
+      reviewedAt: nowIso,
+      reviewedBy: 'Sistèm MASTER PLAY'
+    };
+    db.transactions.unshift(bonusTx);
+
+    addNotification(
+      db,
+      newUser.id,
+      'Felisitasyon !',
+      'Kont ou kreye avèk siksè. Ou resevwa 50 HT kòm bonis byenvini nan MASTER PLAY.',
+      'anons'
+    );
+    logAudit(db, 'ENSKRIPSYON_ITILIZATÈ', `Nouvo itilizatè kreye: ${newUser.fullName} (${newUser.masterPlayId})`, 'Sistèm');
+    recordMemoryEvent(db, {
+      userId: newUser.id,
+      actionType: 'ACCOUNT_CREATED',
+      pageOrFeature: 'AuthModal / Register',
+      result: 'success',
+      data: { masterPlayId: newUser.masterPlayId, fullName: newUser.fullName },
+    });
+    saveDB(db);
+
+    const { pinHash, ...safeUser } = newUser;
+    return res.json({
+      success: true,
+      user: safeUser,
+      message: 'Kont ou kreye avèk siksè.'
+    });
+  });
+
+  // Auth: Login
+  app.post('/api/auth/login', (req, res) => {
+    const { phoneNumber, pin, firebaseUid } = req.body;
+    if (!phoneNumber || !pin) {
+      return res.status(400).json({ error: 'Tanpri bay nimewo telefòn ak kòd sekrè w la.' });
+    }
+
+    const cleanPhone = phoneNumber.trim().replace(/\s+/g, '');
+    const db = loadDB();
+
+    const user = db.users.find(u => u.phoneNumber.replace(/\s+/g, '') === cleanPhone) || findUserInDB(db, cleanPhone);
+    if (!user) {
+      return res.status(404).json({ error: 'Pa gen okenn kont ki asosye ak nimewo sa a.' });
+    }
+
+    if (user.pinHash !== hashPin(pin)) {
+      return res.status(401).json({ error: 'Kòd sekrè a pa kòrèk. Tanpri reeseye.' });
+    }
+
+    if (firebaseUid && !user.firebaseUid) {
+      user.firebaseUid = String(firebaseUid).trim();
+      saveUserToVault(user);
+    }
+
+    let adminToken: string | undefined;
+    if (user.role === 'ADMIN' || user.isAdmin) {
+      adminToken = 'adm_' + crypto.randomBytes(24).toString('hex');
+      if (!db.adminSessions) db.adminSessions = {};
+      db.adminSessions[adminToken] = {
+        userId: user.id,
+        createdAt: new Date().toISOString(),
+      };
+    }
+
+    recordMemoryEvent(db, {
+      userId: user.id,
+      actionType: 'USER_LOGIN',
+      pageOrFeature: 'AuthModal / Login',
+      result: 'success',
+      data: { role: user.role || 'USER' },
+    });
+    saveDB(db);
+
+    const { pinHash, ...safeUser } = user;
+    return res.json({
+      success: true,
+      user: adminToken ? { ...safeUser, adminToken } : safeUser,
+    });
+  });
+
+  // Auth: Google Login / Link (Section 4)
+  app.post('/api/auth/google', (req, res) => {
+    const { email, fullName, photo, phoneNumber, pin, googleId, firebaseUid } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Enfòmasyon Google enkonplè (imèl obligatwa).' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const db = loadDB();
+
+    // 1. Check if user already exists by Firebase UID, Google email, googleId, or phone
+    const cleanPhone = phoneNumber ? phoneNumber.trim().replace(/\s+/g, '') : '';
+    let existingUser = db.users.find(u =>
+      (firebaseUid && u.firebaseUid === firebaseUid) ||
+      (u.email && u.email.toLowerCase() === cleanEmail) ||
+      (googleId && (u as any).googleId === googleId) ||
+      (cleanPhone && u.phoneNumber.replace(/\s+/g, '') === cleanPhone)
+    );
+
+    if (existingUser) {
+      existingUser.isGoogleUser = true;
+      if (!existingUser.email) existingUser.email = cleanEmail;
+      if (firebaseUid && !existingUser.firebaseUid) existingUser.firebaseUid = String(firebaseUid).trim();
+      if (googleId && !(existingUser as any).googleId) (existingUser as any).googleId = googleId;
+      if (photo && (!existingUser.profilePhoto || existingUser.profilePhoto.includes('unsplash'))) {
+        existingUser.profilePhoto = photo;
+      }
+      saveUserToVault(existingUser);
+      saveDB(db);
+      const { pinHash, ...safeUser } = existingUser;
+      return res.json({ success: true, user: safeUser, linked: true, isNew: false });
+    }
+
+    // 2. Create new permanent user account
+    const nowIso = new Date().toISOString();
+    const newUserId = 'usr_g_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    const assignedPhone = cleanPhone || `G-${cleanEmail.split('@')[0]}`;
+    const masterPlayId = allocateMasterPlayId(db, newUserId);
+
+    const newUser: any = {
+      id: newUserId,
+      firebaseUid: firebaseUid ? String(firebaseUid).trim() : undefined,
+      masterPlayId,
+      fullName: (fullName || cleanEmail.split('@')[0]).trim(),
+      email: cleanEmail,
+      googleId: googleId || undefined,
+      phoneNumber: assignedPhone,
+      role: 'USER',
+      isAdmin: false,
+      pinHash: hashPin(pin || '1234'),
+      profilePhoto: photo || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+      balance: 50,
+      welcomeBonusAwarded: true,
+      reservedBalance: 0,
+      level: 1,
+      stars: 1,
+      followersCount: 0,
+      followingCount: 0,
+      followerIds: [],
+      followingIds: [],
+      favoritePostIds: [],
+      createdAt: nowIso,
+      isGoogleUser: true,
+      certificationStatus: 'non_sètifye' as const,
+      verified: false,
+      isMonetized: false,
+      monetizationStatus: 'none',
+      totalEarnings: 0,
+      availableEarnings: 0,
+      paidEarnings: 0,
+      monetizedLikesCount: 0,
+      followerMilestonePaid: false
+    };
+
+    db.users.push(newUser);
+    saveUserToVault(newUser);
 
     // Record welcome bonus transaction in financial ledger
     const bonusTx = {
@@ -1410,127 +2642,164 @@ async function startServer() {
       'Felisitasyon! Ou resevwa 50 HT kòm bonis byenvini nan MASTER PLAY.',
       'anons'
     );
-    logAudit(db, 'ENSKRIPSYON_ITILIZATÈ', `Nouvo itilizatè kreye: ${newUser.fullName} (${newUser.phoneNumber}) avèk bonis byenvini 50 HT`, 'Sistèm');
+    logAudit(db, 'ENSKRIPSYON_GOOGLE', `Nouvo itilizatè Google kreye: ${newUser.fullName} (${newUser.email}) avèk bonis byenvini 50 HT`, 'Sistèm');
     saveDB(db);
 
     const { pinHash, ...safeUser } = newUser;
     return res.json({
       success: true,
       user: safeUser,
+      created: true,
+      isNew: true,
       message: 'Felisitasyon! Ou resevwa 50 HT kòm bonis byenvini nan MASTER PLAY.'
     });
   });
 
-  // Auth: Login
-  app.post('/api/auth/login', (req, res) => {
-    const { phoneNumber, pin } = req.body;
-    if (!phoneNumber || !pin) {
-      return res.status(400).json({ error: 'Tanpri bay nimewo telefòn ak kòd sekrè w la.' });
-    }
+  // Auth: Sync / Restore Account from Firebase Auth & Firestore (Cross-device session continuity)
+  app.post('/api/auth/sync-from-firebase', (req, res) => {
+    try {
+      const {
+        firebaseUid,
+        email,
+        fullName,
+        phoneNumber,
+        profilePhoto,
+        balance,
+        reservedBalance,
+        level,
+        points,
+        stars,
+        masterPlayId,
+        certificationStatus,
+        verified
+      } = req.body || {};
 
-    const cleanPhone = phoneNumber.trim().replace(/\s+/g, '');
-    const db = loadDB();
-
-    const user = db.users.find(u => u.phoneNumber.replace(/\s+/g, '') === cleanPhone);
-    if (!user) {
-      return res.status(404).json({ error: 'Pa gen okenn kont ki asosye ak nimewo sa a.' });
-    }
-
-    if (user.pinHash !== hashPin(pin)) {
-      return res.status(401).json({ error: 'Kòd sekrè a pa kòrèk. Tanpri reeseye.' });
-    }
-
-    const { pinHash, ...safeUser } = user;
-    return res.json({ success: true, user: safeUser });
-  });
-
-  // Auth: Google Login / Link
-  app.post('/api/auth/google', (req, res) => {
-    const { email, fullName, photo, phoneNumber, pin } = req.body;
-    if (!email) {
-      return res.status(400).json({ error: 'Enfòmasyon Google enkonplè.' });
-    }
-
-    const db = loadDB();
-    // If phone provided, find or link
-    if (phoneNumber) {
-      const cleanPhone = phoneNumber.trim().replace(/\s+/g, '');
-      let user = db.users.find(u => u.phoneNumber.replace(/\s+/g, '') === cleanPhone);
-
-      if (user) {
-        user.isGoogleUser = true;
-        if (photo) user.profilePhoto = photo;
-        saveDB(db);
-        const { pinHash, ...safeUser } = user;
-        return res.json({ success: true, user: safeUser, linked: true });
+      if (!firebaseUid) {
+        return res.status(400).json({ error: 'firebaseUid obligatwa.' });
       }
 
-      // Create new user with Google
+      const db = loadDB();
+      const cleanUid = String(firebaseUid).trim();
+      const cleanEmail = email ? String(email).trim().toLowerCase() : '';
+      const cleanPhone = phoneNumber ? String(phoneNumber).trim() : '';
+
+      let user =
+        findUserInDB(db, cleanUid) ||
+        (cleanEmail ? findUserInDB(db, cleanEmail) : null) ||
+        (masterPlayId ? findUserInDB(db, String(masterPlayId)) : null) ||
+        (cleanPhone ? findUserInDB(db, cleanPhone) : null);
+
+      if (user) {
+        let changed = false;
+        if (!user.firebaseUid) {
+          user.firebaseUid = cleanUid;
+          changed = true;
+        }
+        if (cleanEmail && !user.email) {
+          user.email = cleanEmail;
+          changed = true;
+        }
+        if (cleanPhone && (!user.phoneNumber || String(user.phoneNumber).startsWith('FB-'))) {
+          user.phoneNumber = cleanPhone;
+          changed = true;
+        }
+        if (fullName && (!user.fullName || user.fullName === 'Jwè MASTER PLAY')) {
+          user.fullName = String(fullName).trim();
+          changed = true;
+        }
+        if (profilePhoto && (!user.profilePhoto || user.profilePhoto.includes('unsplash'))) {
+          user.profilePhoto = profilePhoto;
+          changed = true;
+        }
+        if (typeof points === 'number' && points > (user.points || 0)) {
+          user.points = points;
+          changed = true;
+        }
+        if (typeof level === 'number' && level > (user.level || 1)) {
+          user.level = level;
+          changed = true;
+        }
+        user.isOnline = true;
+        if (changed) {
+          saveUserToVault(user);
+        }
+        saveDB(db);
+        const { pinHash, ...safeUser } = user;
+        return res.json({
+          success: true,
+          user: {
+            ...safeUser,
+            verified: Boolean(user.verified || user.certificationStatus === 'sètifye' || user.role === 'ADMIN' || user.isAdmin),
+          },
+          restored: false
+        });
+      }
+
+      // Restore or create non-duplicate cloud-linked record
       const nowIso = new Date().toISOString();
-      const newUser = {
-        id: 'usr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-        fullName: fullName || email.split('@')[0],
-        phoneNumber: phoneNumber.trim(),
-        pinHash: hashPin(pin || '1234'),
-        profilePhoto: photo || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-        balance: 50,
-        welcomeBonusAwarded: true,
-        reservedBalance: 0,
-        level: 1,
-        createdAt: nowIso,
-        isGoogleUser: true
+      const newUserId = 'usr_fb_' + cleanUid.slice(0, 12);
+      const allocatedMasterId = masterPlayId ? String(masterPlayId) : allocateMasterPlayId(db, newUserId);
+      const restoredUser: any = {
+        id: newUserId,
+        firebaseUid: cleanUid,
+        masterPlayId: allocatedMasterId,
+        fullName: (fullName || (cleanEmail ? cleanEmail.split('@')[0] : 'Jwè MASTER PLAY')).trim(),
+        email: cleanEmail || undefined,
+        phoneNumber: cleanPhone || `FB-${cleanUid.slice(0, 8)}`,
+        pinHash: hashPin('1234'),
+        role: 'USER',
+        isAdmin: false,
+        profilePhoto: profilePhoto || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+        balance: typeof balance === 'number' && balance >= 0 ? balance : 50,
+        reservedBalance: typeof reservedBalance === 'number' && reservedBalance >= 0 ? reservedBalance : 0,
+        level: typeof level === 'number' && level >= 1 ? level : 1,
+        stars: typeof stars === 'number' && stars >= 1 ? stars : 1,
+        points: typeof points === 'number' && points >= 0 ? points : 0,
+        followersCount: 0,
+        followingCount: 0,
+        followingIds: [],
+        followerIds: [],
+        favoritePostIds: [],
+        matchesWon: 0,
+        matchesPlayed: 0,
+        votesReceived: 0,
+        isOnline: true,
+        isVerifiedInDatabase: true,
+        verifiedInDatabaseAt: nowIso,
+        certificationStatus: certificationStatus === 'sètifye' ? 'sètifye' : 'non_sètifye',
+        verified: Boolean(verified || certificationStatus === 'sètifye'),
+        isMonetized: false,
+        monetizationStatus: 'none',
+        totalEarnings: 0,
+        availableEarnings: 0,
+        paidEarnings: 0,
+        monetizedLikesCount: 0,
+        followerMilestonePaid: false,
+        isGoogleUser: Boolean(cleanEmail && !cleanEmail.endsWith('@masterplay.app')),
+        createdAt: nowIso
       };
-      db.users.push(newUser);
 
-      // Record welcome bonus transaction in financial ledger
-      const bonusTx = {
-        id: 'tx_bonus_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-        referenceId: generateRef('DEP'),
-        userId: newUser.id,
-        userName: newUser.fullName,
-        userPhone: newUser.phoneNumber,
-        type: 'depo' as const,
-        amount: 50,
-        natcashName: newUser.fullName,
-        natcashPhone: newUser.phoneNumber,
-        status: 'konfime' as const,
-        metadata: { reason: 'bonis_byenvini', description: 'Bonis byenvini 50 HT nan MASTER PLAY' },
-        createdAt: nowIso,
-        reviewedAt: nowIso,
-        reviewedBy: 'Sistèm MASTER PLAY'
-      };
-      db.transactions.unshift(bonusTx);
-
-      addNotification(
-        db,
-        newUser.id,
-        'Felisitasyon !',
-        'Felisitasyon! Ou resevwa 50 HT kòm bonis byenvini nan MASTER PLAY.',
-        'anons'
-      );
+      db.users.push(restoredUser);
+      saveUserToVault(restoredUser);
       saveDB(db);
-      const { pinHash, ...safeUser } = newUser;
-      return res.json({
-        success: true,
-        user: safeUser,
-        created: true,
-        message: 'Felisitasyon! Ou resevwa 50 HT kòm bonis byenvini nan MASTER PLAY.'
-      });
+      const { pinHash, ...safeUser } = restoredUser;
+      return res.json({ success: true, user: safeUser, restored: true });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message || 'Erè nan senkronizasyon Firebase.' });
     }
-
-    return res.json({ requiresPhone: true, email, fullName, photo });
   });
 
   // Auth: Update Profile
   app.post('/api/auth/update-profile', (req, res) => {
     const { userId, fullName, profilePhoto } = req.body;
     const db = loadDB();
-    const user = db.users.find(u => u.id === userId);
+    const user = findUserInDB(db, userId);
     if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn.' });
 
     if (fullName) user.fullName = fullName.trim();
     if (profilePhoto) user.profilePhoto = profilePhoto;
 
+    saveUserToVault(user);
     saveDB(db);
     const { pinHash, ...safeUser } = user;
     return res.json({ success: true, user: safeUser });
@@ -1540,7 +2809,7 @@ async function startServer() {
   app.post('/api/auth/change-pin', (req, res) => {
     const { userId, oldPin, newPin } = req.body;
     const db = loadDB();
-    const user = db.users.find(u => u.id === userId);
+    const user = findUserInDB(db, userId);
     if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn.' });
 
     if (user.pinHash !== hashPin(oldPin)) {
@@ -1552,7 +2821,8 @@ async function startServer() {
     }
 
     user.pinHash = hashPin(newPin);
-    addNotification(db, userId, 'Kòd sekirite chanje', 'Kòd pèsonèl ou a te modifye avèk siksè.', 'anons');
+    addNotification(db, user.id, 'Kòd sekirite chanje', 'Kòd pèsonèl ou a te modifye avèk siksè.', 'anons');
+    saveUserToVault(user);
     saveDB(db);
     return res.json({ success: true, message: 'Kòd ou a chanje avèk siksè.' });
   });
@@ -1583,6 +2853,7 @@ async function startServer() {
             : false;
           return {
             ...safeUser,
+            verified: Boolean(u.verified || u.certificationStatus === 'sètifye' || u.role === 'ADMIN' || u.isAdmin),
             isSubscribed: Boolean(isSubscribed)
           };
         });
@@ -1593,13 +2864,19 @@ async function startServer() {
     }
   });
 
-  // Get current user data
+  // Get current user data (Requirement 8 & 2: robust lookup by unique ID or phone)
   app.get('/api/users/:id', (req, res) => {
     const db = loadDB();
-    const user = db.users.find(u => u.id === req.params.id);
+    const user = findUserInDB(db, req.params.id);
     if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn.' });
     const { pinHash, ...safeUser } = user;
-    return res.json({ success: true, user: safeUser });
+    return res.json({
+      success: true,
+      user: {
+        ...safeUser,
+        verified: Boolean(user.verified || user.certificationStatus === 'sètifye' || user.role === 'ADMIN' || user.isAdmin),
+      }
+    });
   });
 
   // Toggle Subscribe / Follow User (Requirement 5: Siy + sou chak pwofil)
@@ -1615,8 +2892,8 @@ async function startServer() {
       }
 
       const db = loadDB();
-      const subscriber = db.users.find(u => u.id === subscriberId);
-      const target = db.users.find(u => u.id === targetUserId);
+      const subscriber = findUserInDB(db, subscriberId);
+      const target = findUserInDB(db, targetUserId);
 
       if (!subscriber || !target) {
         return res.status(404).json({ error: 'Youn oswa toude itilizatè yo pa jwenn.' });
@@ -1637,8 +2914,8 @@ async function startServer() {
         if (existingIndex !== -1) {
           db.subscriptions.splice(existingIndex, 1);
         }
-        subscriber.followingIds = subscriber.followingIds.filter(id => id !== targetUserId);
-        target.followerIds = target.followerIds.filter(id => id !== subscriberId);
+        subscriber.followingIds = subscriber.followingIds.filter((id: string) => id !== targetUserId);
+        target.followerIds = target.followerIds.filter((id: string) => id !== subscriberId);
         target.followersCount = Math.max(0, (target.followersCount || 1) - 1);
         isSubscribed = false;
       } else {
@@ -1691,10 +2968,26 @@ async function startServer() {
   // Competitions: Get All
   app.get('/api/competitions', (req, res) => {
     const db = loadDB();
-    return res.json({ success: true, competitions: db.competitions });
+    const verifiedMap = new Map<string, boolean>(
+      db.users.map((u) => [u.id, Boolean(u.verified || u.certificationStatus === 'sètifye' || u.role === 'ADMIN' || u.isAdmin)])
+    );
+    const enrichedComps = (db.competitions || []).map((c: any) => ({
+      ...c,
+      scores: Array.isArray(c.scores)
+        ? c.scores.map((s: any) => ({ ...s, verified: verifiedMap.get(s.userId) ?? false }))
+        : c.scores,
+      matches: Array.isArray(c.matches)
+        ? c.matches.map((m: any) => ({
+            ...m,
+            player1: m.player1 ? { ...m.player1, verified: verifiedMap.get(m.player1.userId) ?? false } : m.player1,
+            player2: m.player2 ? { ...m.player2, verified: verifiedMap.get(m.player2.userId) ?? false } : m.player2,
+          }))
+        : c.matches,
+    }));
+    return res.json({ success: true, competitions: enrichedComps });
   });
 
-  // Competitions: Register
+  // Competitions: Register (Requirements 1-11: robust user lookup, anti-duplicate registration, persistent state)
   app.post('/api/competitions/register', (req, res) => {
     const { competitionId, userId } = req.body;
     const db = loadDB();
@@ -1702,11 +2995,31 @@ async function startServer() {
     const comp = db.competitions.find(c => c.id === competitionId);
     if (!comp) return res.status(404).json({ error: 'Konpetisyon pa jwenn.' });
 
-    const user = db.users.find(u => u.id === userId);
-    if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn.' });
+    // Requirement 3 & 8: Search user with all identification methods before throwing error
+    const user = findUserInDB(db, userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Itilizatè pa jwenn nan bazdone a. Tanpri verifye koneksyon kont ou.' });
+    }
+
+    const actualUserId = user.id;
+
+    // Requirement 5 & 7 & 10: Strict Anti-double registration check (checks registeredUserIds and scores array)
+    const alreadyRegistered =
+      Boolean(comp.registeredUserIds && comp.registeredUserIds.includes(actualUserId)) ||
+      Boolean(comp.scores && comp.scores.some((s: any) => s.userId === actualUserId));
+
+    if (alreadyRegistered) {
+      const { pinHash, ...safeUser } = user;
+      return res.status(400).json({
+        error: 'Ou deja enskri nan konpetisyon sa a.',
+        alreadyRegistered: true,
+        competition: comp,
+        user: safeUser
+      });
+    }
 
     // Status check
-    const allowedStatuses = ['active', 'Enskripsyon ouvè', 'An kou'];
+    const allowedStatuses = ['active', 'Enskripsyon ouvè', 'An kou', 'Louvri', 'Aktif', 'louvri', 'aktif'];
     if (!allowedStatuses.includes(comp.status)) {
       return res.status(400).json({ error: `Enskripsyon pa posib pou kounye a (Estati: ${comp.status}).` });
     }
@@ -1715,10 +3028,6 @@ async function startServer() {
     const timeCheck = checkCompetitionTimeWindow(comp);
     if (!timeCheck.allowed && comp.status !== 'Enskripsyon ouvè') {
       return res.status(400).json({ error: timeCheck.reason });
-    }
-
-    if (!comp.allowMultipleEntries && comp.registeredUserIds.includes(userId)) {
-      return res.status(400).json({ error: 'Ou deja enskri nan konpetisyon sa a.' });
     }
 
     if (comp.registeredUserIds.length >= comp.maxParticipants) {
@@ -1733,15 +3042,15 @@ async function startServer() {
       });
     }
 
-    // Atomic deduction
+    // Atomic deduction and registration (Requirement 6)
     user.balance -= comp.entryFee;
-    comp.registeredUserIds.push(userId);
+    comp.registeredUserIds.push(actualUserId);
 
     // Also initialize participant score in competition scores list
     if (!comp.scores) comp.scores = [];
-    if (!comp.scores.some(s => s.userId === userId)) {
+    if (!comp.scores.some((s: any) => s.userId === actualUserId)) {
       comp.scores.push({
-        userId,
+        userId: actualUserId,
         fullName: user.fullName,
         phoneNumber: user.phoneNumber,
         profilePhoto: user.profilePhoto,
@@ -1764,7 +3073,7 @@ async function startServer() {
     db.transactions.unshift({
       id: 'tx_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
       referenceId: refId,
-      userId,
+      userId: actualUserId,
       userName: user.fullName,
       userPhone: user.phoneNumber,
       type: 'enskripsyon_konpetisyon',
@@ -1783,7 +3092,7 @@ async function startServer() {
 
     addNotification(
       db,
-      userId,
+      actualUserId,
       `Enskripsyon reyisi: ${comp.name}`,
       `Ou enskri avèk siksè nan ${comp.name}. Nou retire ${comp.entryFee} HT nan balans ou.`,
       'konpetisyon'
@@ -1815,8 +3124,9 @@ async function startServer() {
     const comp = db.competitions.find(c => c.id === competitionId);
     if (!comp) return res.status(404).json({ error: 'Konpetisyon pa jwenn.' });
 
-    const user = db.users.find(u => u.id === userId);
+    const user = findUserInDB(db, userId);
     if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn.' });
+    const actualUserId = user.id;
 
     // Time window control
     const timeCheck = checkCompetitionTimeWindow(comp);
@@ -1824,7 +3134,7 @@ async function startServer() {
       return res.status(400).json({ error: timeCheck.reason });
     }
 
-    if (!comp.registeredUserIds.includes(userId)) {
+    if (!comp.registeredUserIds.includes(actualUserId)) {
       return res.status(403).json({ error: 'Ou dwe enskri nan konpetisyon an anvan ou ka jwe pou pwen.' });
     }
 
@@ -1834,10 +3144,10 @@ async function startServer() {
     }
 
     if (!comp.scores) comp.scores = [];
-    let pScore = comp.scores.find(s => s.userId === userId);
+    let pScore = comp.scores.find(s => s.userId === actualUserId);
     if (!pScore) {
       pScore = {
-        userId,
+        userId: actualUserId,
         fullName: user.fullName,
         phoneNumber: user.phoneNumber,
         profilePhoto: user.profilePhoto,
@@ -1911,7 +3221,7 @@ async function startServer() {
     return res.json({ success: true, scores: comp.scores, userScore: pScore, competition: comp });
   });
 
-  // Competitions: Get played levels today for a specific game
+  // Competitions: Get played levels today for a specific game or all games
   app.get('/api/competitions/:compId/played-levels/:userId/:gameId', (req, res) => {
     try {
       const { compId, userId, gameId } = req.params;
@@ -1920,11 +3230,21 @@ async function startServer() {
       const dayKey = comp?.currentDay || new Date().toISOString().split('T')[0];
 
       if (!db.dailyLevelRecords) db.dailyLevelRecords = [];
-      const playedLevels = db.dailyLevelRecords
-        .filter(r => r.competitionId === compId && r.userId === userId && r.gameId === gameId && r.dayKey === dayKey)
-        .map(r => r.level);
+      const userRecordsToday = db.dailyLevelRecords.filter(
+        r => r.competitionId === compId && r.userId === userId && r.dayKey === dayKey
+      );
 
-      return res.json({ success: true, dayKey, playedLevels });
+      const playedLevels = gameId === 'all'
+        ? userRecordsToday.map(r => r.level)
+        : userRecordsToday.filter(r => r.gameId === gameId).map(r => r.level);
+
+      const playedGameIds = Array.from(new Set(userRecordsToday.map(r => r.gameId)));
+      const gamesRecordCount: { [gId: string]: number } = {};
+      userRecordsToday.forEach(r => {
+        gamesRecordCount[r.gameId] = (gamesRecordCount[r.gameId] || 0) + 1;
+      });
+
+      return res.json({ success: true, dayKey, playedLevels, playedGameIds, gamesRecordCount });
     } catch (e: any) {
       return res.status(500).json({ error: e.message || 'Erè nan rekipere nivo jwe yo.' });
     }
@@ -1942,8 +3262,9 @@ async function startServer() {
       const comp = db.competitions.find(c => c.id === competitionId);
       if (!comp) return res.status(404).json({ error: 'Konpetisyon pa jwenn.' });
 
-      const user = db.users.find(u => u.id === userId);
+      const user = findUserInDB(db, userId);
       if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn.' });
+      const actualUserId = user.id;
 
       // Requirement 3D: Respekte lè konpetisyon an
       const timeCheck = checkCompetitionTimeWindow(comp);
@@ -1953,7 +3274,7 @@ async function startServer() {
         });
       }
 
-      if (!comp.registeredUserIds.includes(userId)) {
+      if (!comp.registeredUserIds.includes(actualUserId)) {
         return res.status(403).json({ error: 'Ou dwe enskri nan konpetisyon an anvan ou ka anrejistre pwen.' });
       }
 
@@ -1967,23 +3288,29 @@ async function startServer() {
 
       if (!db.dailyLevelRecords) db.dailyLevelRecords = [];
 
-      // Requirement 3C & 3A: Pa pèmèt rejwe yon nivo ki deja anrejistre pandan menm jounen an
+      // Verifikasyon: Yon jwè gen dwa anrejistre pwen li sèlman yon sèl fwa pou chak jwèt nan konpetisyon an jodi a
       const alreadyPlayed = db.dailyLevelRecords.some(
-        r => r.competitionId === competitionId && r.userId === userId && r.gameId === gameId && r.level === lvlNum && r.dayKey === dayKey
+        r => r.competitionId === competitionId && r.userId === actualUserId && r.gameId === gameId && r.dayKey === dayKey
       );
 
       if (alreadyPlayed) {
         return res.status(400).json({
-          error: 'Ou deja anrejistre pwen ou pou nivo sa a. Ou pa kapab rejwe li pandan jounen sa a.'
+          error: 'Ou deja anrejistre pwen ou pou jwèt sa a nan konpetisyon an jodi a.'
         });
       }
+
+      const targetGame = db.games.find(g => g.id === gameId);
 
       // Record this level play for today
       db.dailyLevelRecords.push({
         id: 'dlr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
         competitionId,
-        userId,
+        competitionName: comp.name,
+        userId: actualUserId,
+        userName: user.fullName,
+        userPhone: user.phoneNumber,
         gameId,
+        gameTitle: targetGame?.title || gameId,
         level: lvlNum,
         dayKey,
         score: incomingScore,
@@ -1992,10 +3319,10 @@ async function startServer() {
 
       // Update competition scores
       if (!comp.scores) comp.scores = [];
-      let pScore = comp.scores.find(s => s.userId === userId);
+      let pScore = comp.scores.find(s => s.userId === actualUserId);
       if (!pScore) {
         pScore = {
-          userId,
+          userId: actualUserId,
           fullName: user.fullName,
           phoneNumber: user.phoneNumber,
           profilePhoto: user.profilePhoto,
@@ -2081,10 +3408,10 @@ async function startServer() {
     }
 
     const db = loadDB();
-    const sender = db.users.find(u => u.id === senderId);
+    const sender = findUserInDB(db, senderId);
     if (!sender) return res.status(404).json({ error: 'Moun k ap voye kado a pa jwenn.' });
 
-    const receiver = db.users.find(u => u.id === receiverId);
+    const receiver = findUserInDB(db, receiverId);
     if (!receiver) return res.status(404).json({ error: 'Moun k ap resevwa kado a pa jwenn.' });
 
     const gift = db.gifts.find(g => g.id === giftId);
@@ -2332,7 +3659,7 @@ async function startServer() {
     }
 
     const db = loadDB();
-    const voter = db.users.find(u => u.id === voterId);
+    const voter = findUserInDB(db, voterId);
     if (!voter) return res.status(404).json({ error: 'Itilizatè ki vle vote a pa jwenn.' });
 
     const comp = db.competitions.find(c => c.id === competitionId);
@@ -2340,6 +3667,13 @@ async function startServer() {
 
     const match = comp.matches?.find(m => m.id === matchId);
     if (!match) return res.status(404).json({ error: 'Match pa jwenn.' });
+
+    // Section 6: Anpeche menm itilizatè vote plizyè fwa sou menm match la
+    if (!db.votes) db.votes = [];
+    const alreadyVoted = db.votes.some(v => v.matchId === matchId && v.voterId === voter.id);
+    if (alreadyVoted) {
+      return res.status(400).json({ error: 'Ou deja vote nan match VS sa a. Règleman MASTER PLAY pèmèt yon sèl vòt pou chak itilizatè sou menm match la.' });
+    }
 
     if (comp.votingEnabled === false || match.votingEnabled === false) {
       return res.status(400).json({ error: 'Vòt la dezaktive pou match sa a pa administratè a.' });
@@ -2352,7 +3686,7 @@ async function startServer() {
       }
     }
 
-    const candidate = db.users.find(u => u.id === playerId);
+    const candidate = findUserInDB(db, playerId);
     const candidateName = candidate ? candidate.fullName : (match.player1.userId === playerId ? match.player1.fullName : match.player2.fullName);
 
     const votePrice = match.votePrice || comp.votePrice || 15;
@@ -2371,12 +3705,19 @@ async function startServer() {
       candidate.votesReceived = (candidate.votesReceived || 0) + 1;
     }
 
+    // Section 6: Chak fwa yon jwè resevwa 2 vòt, sa konte kòm 1 vòt/1 pwen
+    const matchObj = match as any;
+    if (matchObj.rawVotes1 === undefined) matchObj.rawVotes1 = (match.votes1 || 0) * 2;
+    if (matchObj.rawVotes2 === undefined) matchObj.rawVotes2 = (match.votes2 || 0) * 2;
+
     if (match.player1.userId === playerId) {
-      match.votes1 = (match.votes1 || 0) + 1;
-      match.player1.votesCount = (match.player1.votesCount || 0) + 1;
+      matchObj.rawVotes1 = (matchObj.rawVotes1 || 0) + 1;
+      match.votes1 = Math.floor(matchObj.rawVotes1 / 2);
+      match.player1.votesCount = match.votes1;
     } else if (match.player2.userId === playerId) {
-      match.votes2 = (match.votes2 || 0) + 1;
-      match.player2.votesCount = (match.player2.votesCount || 0) + 1;
+      matchObj.rawVotes2 = (matchObj.rawVotes2 || 0) + 1;
+      match.votes2 = Math.floor(matchObj.rawVotes2 / 2);
+      match.player2.votesCount = match.votes2;
     }
 
     if (comp.scores) {
@@ -2476,8 +3817,8 @@ async function startServer() {
     const comp = db.competitions.find(c => c.id === req.params.id);
     if (!comp) return res.status(404).json({ error: 'Konpetisyon pa jwenn.' });
 
-    const p1User = db.users.find(u => u.id === player1Id);
-    const p2User = db.users.find(u => u.id === player2Id);
+    const p1User = findUserInDB(db, player1Id);
+    const p2User = findUserInDB(db, player2Id);
 
     if (!p1User || !p2User) {
       return res.status(400).json({ error: 'Chwazi de jwè valab pou match la.' });
@@ -2632,18 +3973,144 @@ async function startServer() {
   // Publications (Posts): Get All
   app.get('/api/posts', (req, res) => {
     const db = loadDB();
-    return res.json({ success: true, posts: db.posts });
+    const verifiedMap = new Map<string, boolean>(
+      db.users.map((u) => [u.id, Boolean(u.verified || u.certificationStatus === 'sètifye' || u.role === 'ADMIN' || u.isAdmin)])
+    );
+    const enrichedPosts = (db.posts || []).map((p: any) => ({
+      ...p,
+      authorVerified: p.authorId ? (verifiedMap.get(p.authorId) ?? false) : false,
+      comments: Array.isArray(p.comments)
+        ? p.comments.map((c: any) => ({
+            ...c,
+            userVerified: c.userId ? (verifiedMap.get(c.userId) ?? false) : false,
+          }))
+        : [],
+    }));
+    return res.json({ success: true, posts: enrichedPosts });
   });
 
-  // Like post
+  // Check if user can post today (1 post per day limit)
+  app.get('/api/posts/can-post/:userId', (req, res) => {
+    const { userId } = req.params;
+    const db = loadDB();
+    const user = findUserInDB(db, userId);
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    const todayPost = (db.posts || []).find(p =>
+      (p.authorId === userId || (user && p.authorId === user.id) || (p as any).userId === userId) &&
+      p.createdAt && p.createdAt.startsWith(todayStr)
+    );
+
+    if (todayPost) {
+      return res.json({
+        success: true,
+        canPost: false,
+        alreadyPostedToday: true,
+        today: todayStr,
+        lastPost: todayPost,
+        message: 'Ou deja fè yon piblikasyon jodi a. Règ Master Play bay chak itilizatè dwa fè yon sèl piblikasyon pa jou.'
+      });
+    }
+
+    return res.json({
+      success: true,
+      canPost: true,
+      alreadyPostedToday: false,
+      today: todayStr
+    });
+  });
+
+  // Create a new post (enforces moderation + 1 post per day limit)
+  app.post('/api/posts/create', (req, res) => {
+    const { userId, title, description, mediaType, mediaUrl, videoUrl, tiktokUrl } = req.body;
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'UserId obligatwa pou kreye yon piblikasyon.' });
+    }
+
+    const db = loadDB();
+    const user = findUserInDB(db, userId);
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'Itilizatè sa a pa jwenn nan bazdone Master Play la.' });
+    }
+    if (user.certificationStatus !== 'sètifye' && user.role !== 'ADMIN' && !user.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        code: 'NOT_CERTIFIED',
+        error: 'Kont ou poko sètifye. Tanpri tann validasyon Administratè a anvan ou ka fè piblikasyon.'
+      });
+    }
+
+    // 1. Content moderation check (blocks sexually explicit / pornographic content)
+    const combinedMedia = mediaUrl || videoUrl || tiktokUrl || '';
+    const moderation = moderatePostContent(title || '', description || '', combinedMedia);
+    if (!moderation.allowed) {
+      return res.status(400).json({
+        success: false,
+        error: moderation.reason
+      });
+    }
+
+    // 2. 1 Post per day check
+    const todayStr = new Date().toISOString().split('T')[0];
+    const existingPostToday = (db.posts || []).find(p =>
+      (p.authorId === user.id || (p as any).userId === user.id || p.authorId === userId) &&
+      p.createdAt && p.createdAt.startsWith(todayStr)
+    );
+
+    if (existingPostToday) {
+      return res.status(429).json({
+        success: false,
+        error: 'Ou deja fè yon piblikasyon jodi a. Règ Master Play pèmèt yon sèl piblikasyon pa jou pou chak itilizatè pou evite spam ak garanti bon kalite kontni.'
+      });
+    }
+
+    // Determine media type
+    let finalMediaType: 'text' | 'image' | 'video' = 'text';
+    if (mediaType === 'video' || (combinedMedia && (combinedMedia.endsWith('.mp4') || combinedMedia.endsWith('.webm') || combinedMedia.includes('video') || combinedMedia.startsWith('data:video/')))) {
+      finalMediaType = 'video';
+    } else if (mediaType === 'image' || (combinedMedia && (combinedMedia.startsWith('data:image/') || combinedMedia.endsWith('.jpg') || combinedMedia.endsWith('.png') || combinedMedia.endsWith('.webp')))) {
+      finalMediaType = 'image';
+    } else if (combinedMedia) {
+      finalMediaType = 'image';
+    }
+
+    const newPost: any = {
+      id: 'post_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      authorId: user.id,
+      authorName: user.fullName || user.username || 'Itilizatè',
+      authorPhoto: user.profilePhoto,
+      title: (title || '').trim(),
+      description: (description || '').trim(),
+      mediaUrl: combinedMedia,
+      mediaType: finalMediaType,
+      likes: [],
+      favorites: [],
+      comments: [],
+      viewsCount: 0,
+      sharesCount: 0,
+      createdAt: new Date().toISOString()
+    };
+
+    if (!db.posts) db.posts = [];
+    db.posts.unshift(newPost);
+    user.lastPostDate = todayStr;
+
+    logAudit(db, 'KREYE_PIBLIKASYON', `Nouvo piblikasyon kreye pa ${user.fullName} (${user.id}): "${newPost.title.substring(0, 30)}"`, user.fullName);
+    saveDB(db);
+
+    return res.json({ success: true, post: newPost });
+  });
+
+  // Like post (toggle)
   app.post('/api/posts/:id/like', (req, res) => {
     const { userId } = req.body;
     if (!userId) return res.status(400).json({ error: 'UserId obligatwa' });
 
     const db = loadDB();
-    const post = db.posts.find(p => p.id === req.params.id);
+    const post = (db.posts || []).find(p => p.id === req.params.id);
     if (!post) return res.status(404).json({ error: 'Piblikasyon pa jwenn.' });
 
+    if (!post.likes) post.likes = [];
     const index = post.likes.indexOf(userId);
     if (index === -1) {
       post.likes.push(userId);
@@ -2651,8 +4118,50 @@ async function startServer() {
       post.likes.splice(index, 1);
     }
 
+    // Recalculate monetization earnings for the author of the post
+    const authorId = post.authorId || (post as any).userId;
+    if (authorId) {
+      const author = findUserInDB(db, authorId);
+      if (author) {
+        recalculateMonetizationEarnings(db, author);
+      }
+    }
+
     saveDB(db);
     return res.json({ success: true, likes: post.likes });
+  });
+
+  // Favorite post (toggle)
+  app.post('/api/posts/:id/favorite', (req, res) => {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: 'UserId obligatwa' });
+
+    const db = loadDB();
+    const post = (db.posts || []).find(p => p.id === req.params.id);
+    if (!post) return res.status(404).json({ error: 'Piblikasyon pa jwenn.' });
+
+    const user = findUserInDB(db, userId);
+    if (!post.favorites) post.favorites = [];
+    if (user && !user.favoritePostIds) user.favoritePostIds = [];
+
+    const index = post.favorites.indexOf(userId);
+    let isFavorite = false;
+    if (index === -1) {
+      post.favorites.push(userId);
+      if (user && !user.favoritePostIds.includes(post.id)) {
+        user.favoritePostIds.push(post.id);
+      }
+      isFavorite = true;
+    } else {
+      post.favorites.splice(index, 1);
+      if (user) {
+        user.favoritePostIds = user.favoritePostIds.filter((pid: string) => pid !== post.id);
+      }
+      isFavorite = false;
+    }
+
+    saveDB(db);
+    return res.json({ success: true, isFavorite, favorites: post.favorites });
   });
 
   // Comment on post
@@ -2662,11 +4171,17 @@ async function startServer() {
       return res.status(400).json({ error: 'Kòmantè pa ka vid.' });
     }
 
+    // Check moderation for comments as well
+    const moderation = moderatePostContent('', text, '');
+    if (!moderation.allowed) {
+      return res.status(400).json({ error: moderation.reason });
+    }
+
     const db = loadDB();
-    const post = db.posts.find(p => p.id === req.params.id);
+    const post = (db.posts || []).find(p => p.id === req.params.id);
     if (!post) return res.status(404).json({ error: 'Piblikasyon pa jwenn.' });
 
-    const user = db.users.find(u => u.id === userId);
+    const user = findUserInDB(db, userId);
     const newComment = {
       id: 'c_' + Date.now(),
       userId,
@@ -2676,9 +4191,624 @@ async function startServer() {
       createdAt: new Date().toISOString()
     };
 
+    if (!post.comments) post.comments = [];
     post.comments.push(newComment);
     saveDB(db);
     return res.json({ success: true, comment: newComment, comments: post.comments });
+  });
+
+  // Follow / Unfollow User
+  app.post('/api/users/:targetUserId/follow', (req, res) => {
+    const { currentUserId, userId } = req.body;
+    const cId = currentUserId || userId;
+    const { targetUserId } = req.params;
+
+    if (!cId) return res.status(400).json({ error: 'currentUserId obligatwa pou swiv yon itilizatè.' });
+    if (cId === targetUserId) return res.status(400).json({ error: 'Ou pa ka swiv pwòp tèt ou.' });
+
+    const db = loadDB();
+    const cUser = findUserInDB(db, cId);
+    const targetUser = findUserInDB(db, targetUserId);
+
+    if (!cUser || !targetUser) {
+      return res.status(404).json({ error: 'Itilizatè pa jwenn nan bazdone a.' });
+    }
+
+    if (!cUser.followingIds) cUser.followingIds = [];
+    if (!targetUser.followerIds) targetUser.followerIds = [];
+
+    const isFollowing = cUser.followingIds.includes(targetUser.id);
+
+    if (isFollowing) {
+      cUser.followingIds = cUser.followingIds.filter((id: string) => id !== targetUser.id);
+      targetUser.followerIds = targetUser.followerIds.filter((id: string) => id !== cUser.id);
+    } else {
+      cUser.followingIds.push(targetUser.id);
+      targetUser.followerIds.push(cUser.id);
+      addNotification(db, targetUser.id, 'Nouvo Abòne !', `${cUser.fullName || cUser.username} kòmanse swiv ou sou Master Play.`, 'anons');
+    }
+
+    cUser.followingCount = cUser.followingIds.length;
+    targetUser.followersCount = targetUser.followerIds.length;
+
+    // Recalculate monetization (including milestone bonus for 1000 followers)
+    recalculateMonetizationEarnings(db, targetUser);
+
+    saveDB(db);
+    saveUserToVault(cUser);
+    saveUserToVault(targetUser);
+
+    return res.json({
+      success: true,
+      isFollowing: !isFollowing,
+      followersCount: targetUser.followersCount,
+      followingCount: cUser.followingCount
+    });
+  });
+
+  // Get User Profile with posts, follow state and monetization status
+  app.get('/api/users/:id/profile', (req, res) => {
+    const { id } = req.params;
+    const currentUserId = req.query.currentUserId as string | undefined;
+
+    const db = loadDB();
+    const targetUser = findUserInDB(db, id);
+
+    if (!targetUser) {
+      return res.status(404).json({ error: 'Itilizatè pa jwenn nan bazdone Master Play la.' });
+    }
+
+    const followersCount = targetUser.followersCount || (targetUser.followerIds ? targetUser.followerIds.length : 0);
+    const followingCount = targetUser.followingCount || (targetUser.followingIds ? targetUser.followingIds.length : 0);
+    const isFollowing = currentUserId && targetUser.followerIds ? targetUser.followerIds.includes(currentUserId) : false;
+
+    // Recalculate monetization on profile fetch
+    recalculateMonetizationEarnings(db, targetUser);
+
+    // Fetch user's posts
+    const userPosts = (db.posts || []).filter(p =>
+      p.authorId === targetUser.id || (p as any).userId === targetUser.id
+    );
+
+    // Safe user view without password/sensitive fields
+    const safeTargetUser: any = {
+      id: targetUser.id,
+      fullName: targetUser.fullName,
+      username: targetUser.username,
+      profilePhoto: targetUser.profilePhoto,
+      bio: targetUser.bio,
+      stars: targetUser.stars,
+      level: targetUser.level,
+      isVerified: targetUser.isVerified,
+      isMonetized: Boolean(targetUser.isMonetized),
+      monetizationStatus: targetUser.monetizationStatus || 'none',
+      monetizedLikesCount: targetUser.monetizedLikesCount || 0,
+      createdAt: targetUser.createdAt,
+      followersCount,
+      followingCount
+    };
+
+    return res.json({
+      success: true,
+      user: safeTargetUser,
+      posts: userPosts,
+      isFollowing,
+      followersCount,
+      followingCount
+    });
+  });
+
+  // ========================================================
+  // USER MONETIZATION SYSTEM (Sections 7, 8, 9, 10, 11, 12)
+  // ========================================================
+
+  // 1. Get User Monetization Status
+  app.get('/api/monetization/status/:userId', (req, res) => {
+    try {
+      const { userId } = req.params;
+      const db = loadDB();
+      const user = findUserInDB(db, userId);
+      if (!user) {
+        return res.status(404).json({ error: 'Itilizatè pa jwenn nan bazdone a.' });
+      }
+
+      recalculateMonetizationEarnings(db, user);
+      saveDB(db);
+
+      const config = db.monetizationConfig || {
+        activationFee: 250,
+        minFollowersRequired: 1000,
+        earningsPer1000Likes: 500,
+        followerMilestoneRequired: 1000,
+        followerMilestoneBonus: 1000,
+        minPayoutAmount: 500,
+        isEnabled: true
+      };
+
+      const followersCount = user.followersCount || (user.followerIds ? user.followerIds.length : 0);
+      const isEligible = followersCount >= (config.minFollowersRequired || 1000);
+
+      return res.json({
+        success: true,
+        isEligible,
+        followersCount,
+        minFollowersRequired: config.minFollowersRequired || 1000,
+        activationFee: config.activationFee || 250,
+        isMonetized: Boolean(user.isMonetized),
+        monetizationStatus: user.monetizationStatus || 'none',
+        totalEarnings: user.totalEarnings || 0,
+        availableEarnings: user.availableEarnings || 0,
+        paidEarnings: user.paidEarnings || 0,
+        monetizedLikesCount: user.monetizedLikesCount || 0,
+        followerMilestonePaid: Boolean(user.followerMilestonePaid),
+        userBalance: user.balance || 0,
+        config
+      });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message || 'Erè nan chaje estati monetizasyon.' });
+    }
+  });
+
+  // 2. Request Monetization
+  app.post('/api/monetization/request', (req, res) => {
+    try {
+      const { userId } = req.body;
+      if (!userId) return res.status(400).json({ error: 'UserId obligatwa.' });
+
+      const db = loadDB();
+      const user = findUserInDB(db, userId);
+      if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn nan bazdone a.' });
+
+      const config = db.monetizationConfig || { minFollowersRequired: 1000, activationFee: 250 };
+      const followers = user.followersCount || (user.followerIds ? user.followerIds.length : 0);
+
+      if (followers < config.minFollowersRequired) {
+        return res.status(400).json({
+          error: `Ou bezwen omwen ${config.minFollowersRequired.toLocaleString()} abòne pou kalifye pou monetizasyon. Ou gen ${followers.toLocaleString()} abòne kounye a.`
+        });
+      }
+
+      user.monetizationStatus = 'pending';
+      user.monetizationRequestedAt = new Date().toISOString();
+      saveUserToVault(user);
+      saveDB(db);
+
+      return res.json({
+        success: true,
+        message: 'Demann monetizasyon ou anrejistre avèk siksè. Ou ka peye frè aktivasyon an kounye a.',
+        monetizationStatus: user.monetizationStatus,
+        activationFee: config.activationFee
+      });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message || 'Erè nan voye demann monetizasyon.' });
+    }
+  });
+
+  // 3. Activate Monetization (Deduct activation fee from balance)
+  app.post('/api/monetization/activate', (req, res) => {
+    try {
+      const { userId } = req.body;
+      if (!userId) return res.status(400).json({ error: 'UserId obligatwa.' });
+
+      const db = loadDB();
+      const user = findUserInDB(db, userId);
+      if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn nan bazdone a.' });
+
+      const config = db.monetizationConfig || { minFollowersRequired: 1000, activationFee: 250, earningsPer1000Likes: 500 };
+      const followers = user.followersCount || (user.followerIds ? user.followerIds.length : 0);
+
+      if (followers < config.minFollowersRequired) {
+        return res.status(400).json({
+          error: `Ou bezwen omwen ${config.minFollowersRequired.toLocaleString()} abòne pou aktive monetizasyon. Ou gen ${followers.toLocaleString()} abòne kounye a.`
+        });
+      }
+
+      const fee = config.activationFee || 250;
+      if ((user.balance || 0) < fee) {
+        return res.status(400).json({
+          error: `Balans ou pa ase (${user.balance || 0} HT). Frè aktivasyon monetizasyon an se ${fee} HT. Tanpri fè yon depo NatCash pou konplete aktivasyon an.`
+        });
+      }
+
+      // Deduct activation fee
+      user.balance -= fee;
+      user.isMonetized = true;
+      user.monetizationStatus = 'active';
+      user.monetizationApprovedAt = new Date().toISOString();
+
+      // Record in ledger
+      recordFinancialLedger(db, {
+        userId: user.id,
+        type: 'frais_monetizasyon',
+        amount: fee,
+        status: 'completed',
+        source: `Balans Jwèt (${user.fullName})`,
+        destination: 'Master Play Kès Administratè',
+        description: `Frè aktivasyon monetizasyon kreyatè pou ${user.fullName} (${user.id})`
+      });
+
+      // Recalculate earnings
+      recalculateMonetizationEarnings(db, user);
+
+      addNotification(
+        db,
+        user.id,
+        '⭐ Monetizasyon Aktive !',
+        `Felisitasyon ! Kont ou legalize e monetize sou Master Play. W ap touche 500 G pou chak 1,000 likes sou videyo ou yo.`,
+        'anons'
+      );
+
+      saveUserToVault(user);
+      saveDB(db);
+
+      return res.json({
+        success: true,
+        message: 'Felisitasyon ! Monetizasyon ou aktive avèk siksè sou Master Play.',
+        user: {
+          id: user.id,
+          isMonetized: user.isMonetized,
+          monetizationStatus: user.monetizationStatus,
+          balance: user.balance,
+          totalEarnings: user.totalEarnings,
+          availableEarnings: user.availableEarnings
+        }
+      });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message || 'Erè nan aktive monetizasyon.' });
+    }
+  });
+
+  // 4. Transfer Monetization Earnings to Main Gaming Balance
+  app.post('/api/monetization/transfer-to-balance', (req, res) => {
+    try {
+      const { userId, amount } = req.body;
+      if (!userId) return res.status(400).json({ error: 'UserId obligatwa.' });
+
+      const transferAmount = Number(amount);
+      if (!transferAmount || transferAmount <= 0 || isNaN(transferAmount)) {
+        return res.status(400).json({ error: 'Montan transfè a dwe valab epi pi gwo pase 0.' });
+      }
+
+      const db = loadDB();
+      const user = findUserInDB(db, userId);
+      if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn nan bazdone a.' });
+
+      recalculateMonetizationEarnings(db, user);
+
+      if ((user.availableEarnings || 0) < transferAmount) {
+        return res.status(400).json({
+          error: `Revni disponib ou pa ase (${user.availableEarnings || 0} HT disponib).`
+        });
+      }
+
+      user.paidEarnings = (user.paidEarnings || 0) + transferAmount;
+      user.availableEarnings = Math.max(0, (user.totalEarnings || 0) - user.paidEarnings);
+      user.balance = (user.balance || 0) + transferAmount;
+
+      recordFinancialLedger(db, {
+        userId: user.id,
+        type: 'transfe_balans',
+        amount: transferAmount,
+        status: 'completed',
+        source: 'Revni Kreyatè Master Play',
+        destination: `Balans Jwèt (${user.fullName})`,
+        description: `Transfè revni kreyatè nan balans prensipal pou ${user.fullName}`
+      });
+
+      addNotification(
+        db,
+        user.id,
+        '💰 Transfè Revni Reyisi',
+        `Ou transfere ${transferAmount} HT soti nan revni kreyatè ou ale nan balans jwèt ou avèk siksè.`,
+        'anons'
+      );
+
+      saveUserToVault(user);
+      saveDB(db);
+
+      return res.json({
+        success: true,
+        message: `${transferAmount} HT transfere nan balans ou avèk siksè.`,
+        user: {
+          id: user.id,
+          balance: user.balance,
+          totalEarnings: user.totalEarnings,
+          availableEarnings: user.availableEarnings,
+          paidEarnings: user.paidEarnings
+        }
+      });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message || 'Erè nan transfere revni.' });
+    }
+  });
+
+  // 5. Admin: Get Monetization Overview & Creators
+  app.get('/api/admin/monetization', (req, res) => {
+    try {
+      const db = loadDB();
+      const config = db.monetizationConfig || {
+        activationFee: 250,
+        minFollowersRequired: 1000,
+        earningsPer1000Likes: 500,
+        followerMilestoneRequired: 1000,
+        followerMilestoneBonus: 1000,
+        minPayoutAmount: 500,
+        isEnabled: true
+      };
+
+      // Find all monetized or eligible users
+      const creators = db.users
+        .filter(u => u.isMonetized || u.monetizationStatus === 'active' || (u.followersCount || 0) >= 1000)
+        .map(u => {
+          recalculateMonetizationEarnings(db, u);
+          return {
+            id: u.id,
+            fullName: u.fullName,
+            username: u.username,
+            phoneNumber: u.phoneNumber,
+            profilePhoto: u.profilePhoto,
+            followersCount: u.followersCount || 0,
+            isMonetized: Boolean(u.isMonetized),
+            monetizationStatus: u.monetizationStatus || 'none',
+            monetizedLikesCount: u.monetizedLikesCount || 0,
+            totalEarnings: u.totalEarnings || 0,
+            availableEarnings: u.availableEarnings || 0,
+            paidEarnings: u.paidEarnings || 0,
+            followerMilestonePaid: Boolean(u.followerMilestonePaid),
+            balance: u.balance || 0,
+            monetizationApprovedAt: u.monetizationApprovedAt
+          };
+        });
+
+      return res.json({
+        success: true,
+        config,
+        creators,
+        totalCreatorsCount: creators.length,
+        totalMonetizedCount: creators.filter(c => c.isMonetized).length
+      });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message || 'Erè nan rekipere done monetizasyon.' });
+    }
+  });
+
+  // 6. Admin: Update Monetization Config
+  app.post('/api/admin/monetization/config', (req, res) => {
+    try {
+      const { activationFee, minFollowersRequired, earningsPer1000Likes, followerMilestoneBonus, minPayoutAmount, isEnabled } = req.body;
+      const db = loadDB();
+
+      if (!db.monetizationConfig) {
+        db.monetizationConfig = {
+          activationFee: 250,
+          minFollowersRequired: 1000,
+          earningsPer1000Likes: 500,
+          followerMilestoneRequired: 1000,
+          followerMilestoneBonus: 1000,
+          minPayoutAmount: 500,
+          isEnabled: true
+        };
+      }
+
+      if (activationFee !== undefined) db.monetizationConfig.activationFee = Math.max(0, Number(activationFee));
+      if (minFollowersRequired !== undefined) db.monetizationConfig.minFollowersRequired = Math.max(1, Number(minFollowersRequired));
+      if (earningsPer1000Likes !== undefined) db.monetizationConfig.earningsPer1000Likes = Math.max(0, Number(earningsPer1000Likes));
+      if (followerMilestoneBonus !== undefined) db.monetizationConfig.followerMilestoneBonus = Math.max(0, Number(followerMilestoneBonus));
+      if (minPayoutAmount !== undefined) db.monetizationConfig.minPayoutAmount = Math.max(0, Number(minPayoutAmount));
+      if (isEnabled !== undefined) db.monetizationConfig.isEnabled = Boolean(isEnabled);
+
+      logAudit(
+        db,
+        'MODIFIE_MONETIZASYON_CONFIG',
+        `Konfigirasyon monetizasyon modifye (Frè: ${db.monetizationConfig.activationFee} HT, 1k Likes: ${db.monetizationConfig.earningsPer1000Likes} G, Bonis 1k Abòne: ${db.monetizationConfig.followerMilestoneBonus} G)`,
+        'Prince509'
+      );
+
+      saveDB(db);
+      return res.json({ success: true, config: db.monetizationConfig });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message || 'Erè nan mete ajou konfigirasyon monetizasyon.' });
+    }
+  });
+
+  // 7. Admin: Toggle/Approve/Suspend User Monetization
+  app.post('/api/admin/monetization/users/:userId/toggle', (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { status, isMonetized } = req.body;
+
+      const db = loadDB();
+      const user = findUserInDB(db, userId);
+      if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn.' });
+
+      if (status !== undefined) user.monetizationStatus = status;
+      if (isMonetized !== undefined) user.isMonetized = Boolean(isMonetized);
+
+      if (user.isMonetized) {
+        user.monetizationApprovedAt = user.monetizationApprovedAt || new Date().toISOString();
+        recalculateMonetizationEarnings(db, user);
+      }
+
+      saveUserToVault(user);
+      saveDB(db);
+
+      logAudit(
+        db,
+        'AJOUTE_MONETIZASYON_STATUS',
+        `Monetizasyon pou ${user.fullName} (${user.id}) mete nan estati "${user.monetizationStatus}" (Aktif: ${user.isMonetized})`,
+        'Prince509'
+      );
+
+      return res.json({ success: true, user });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message || 'Erè nan modifye estati kreyatè a.' });
+    }
+  });
+
+  // 8. Admin: Manual Creator Payout
+  app.post('/api/admin/monetization/users/:userId/payout', (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { amount, adminPin } = req.body;
+
+      if (adminPin !== 'Prince509') {
+        return res.status(403).json({ error: 'Kòd PIN Administratè a pa kòrèk.' });
+      }
+
+      const payoutAmount = Number(amount);
+      if (!payoutAmount || payoutAmount <= 0) {
+        return res.status(400).json({ error: 'Montan peman an dwe pi gwo pase 0.' });
+      }
+
+      const db = loadDB();
+      const user = findUserInDB(db, userId);
+      if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn.' });
+
+      recalculateMonetizationEarnings(db, user);
+
+      if ((user.availableEarnings || 0) < payoutAmount) {
+        return res.status(400).json({
+          error: `Revni disponib kreyatè a (${user.availableEarnings || 0} HT) pa ase pou peman ${payoutAmount} HT sa a.`
+        });
+      }
+
+      user.paidEarnings = (user.paidEarnings || 0) + payoutAmount;
+      user.availableEarnings = Math.max(0, (user.totalEarnings || 0) - user.paidEarnings);
+
+      recordFinancialLedger(db, {
+        userId: user.id,
+        type: 'peman_revni',
+        amount: payoutAmount,
+        status: 'completed',
+        source: 'Kès Master Play',
+        destination: `Peman Kreyatè (${user.fullName})`,
+        description: `Peman revni monetizasyon dirèk pa administratè pou ${user.fullName}`
+      });
+
+      addNotification(
+        db,
+        user.id,
+        '💵 Peman Revni Fèt !',
+        `Administratè a voye ${payoutAmount} HT pou revni kreyatè ou. Mèsi pou kontribisyon ou sou Master Play !`,
+        'anons'
+      );
+
+      saveUserToVault(user);
+      saveDB(db);
+
+      return res.json({ success: true, user });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message || 'Erè nan fè peman kreyatè a.' });
+    }
+  });
+
+  // ========================================================
+  // ALGORITHM INTELLIGENCE & DECISION SYSTEM (13, 14, 15)
+  // ========================================================
+
+  // 1. Get Algorithm Intelligence Dashboard Data
+  app.get('/api/admin/algorithm-intelligence', (req, res) => {
+    try {
+      const db = loadDB();
+      const analysis = analyzeSystemData(db);
+      return res.json({ success: true, data: analysis });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message || 'Erè nan analiz sistèm algorithm la.' });
+    }
+  });
+
+  // 2. Review Algorithm Approvals (Approve/Reject automated suggestions)
+  app.post('/api/admin/algorithm-approvals/:id/review', (req, res) => {
+    try {
+      const { id } = req.params;
+      const { action, adminPin, reviewNotes } = req.body;
+
+      if (adminPin !== 'Prince509') {
+        return res.status(403).json({ error: 'Kòd PIN Administratè a pa kòrèk.' });
+      }
+
+      const db = loadDB();
+      const item = (db.algorithmApprovals || []).find(a => a.id === id);
+      if (!item) return res.status(404).json({ error: 'Demann apwobasyon pa jwenn.' });
+
+      item.status = action === 'approve' ? 'approved' : 'rejected';
+      item.reviewedBy = 'Prince509';
+      item.reviewedAt = new Date().toISOString();
+      if (reviewNotes) item.reviewNotes = reviewNotes;
+
+      logAudit(
+        db,
+        'REVIZE_ALGORITHM_APWOBASYON',
+        `Demann algorithm ${item.type} (${item.id}) te ${item.status} pa admin.`,
+        'Prince509'
+      );
+
+      saveDB(db);
+      return res.json({ success: true, item });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message || 'Erè nan revize apwobasyon an.' });
+    }
+  });
+
+  // 3. Clean Fake Accounts and Sanitize Followers
+  app.post('/api/admin/clean-fake-accounts', (req, res) => {
+    try {
+      const { adminPin } = req.body;
+      if (adminPin !== 'Prince509') {
+        return res.status(403).json({ error: 'Kòd PIN Administratè a pa kòrèk.' });
+      }
+
+      const db = loadDB();
+      const result = cleanFakeAccounts(db);
+
+      logAudit(
+        db,
+        'NETWAYE_FO_KONT',
+        `Netwayaj fo kont ak fo abòne fèt: ${result.removedCount} fo kont retire, ${result.sanitizedFollowersCount} lis abòne korije.`,
+        'Prince509'
+      );
+
+      saveDB(db);
+      return res.json({
+        success: true,
+        message: `Netwayaj la reyisi ! ${result.removedCount} fo kont retire, ${result.sanitizedFollowersCount} relasyon abòne netwaye.`,
+        ...result
+      });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message || 'Erè nan netwaye fo kont yo.' });
+    }
+  });
+
+  // Featured Matches for Home Page (Match VS sou Home)
+  app.get('/api/matches/home-featured', (req, res) => {
+    const db = loadDB();
+    const featuredMatches: any[] = [];
+
+    (db.competitions || []).forEach(comp => {
+      (comp.matches || []).forEach(match => {
+        featuredMatches.push({
+          ...match,
+          competitionId: comp.id,
+          competitionName: comp.name,
+          competitionStatus: comp.status,
+          entryFee: comp.entryFee,
+          prizes: comp.prizes,
+          votePrice: match.votePrice || comp.votePrice || 15
+        });
+      });
+    });
+
+    // Sort: 'An kou' first, then 'Pwograme', then by total activity
+    featuredMatches.sort((a, b) => {
+      if (a.status === 'An kou' && b.status !== 'An kou') return -1;
+      if (b.status === 'An kou' && a.status !== 'An kou') return 1;
+      return ((b.votes1 || 0) + (b.votes2 || 0)) - ((a.votes1 || 0) + (a.votes2 || 0));
+    });
+
+    return res.json({
+      success: true,
+      matches: featuredMatches.slice(0, 4)
+    });
   });
 
   // Games: Get All
@@ -2687,35 +4817,125 @@ async function startServer() {
     return res.json({ success: true, games: db.games });
   });
 
-  // Games: Play / Record Result
-  app.post('/api/games/play', (req, res) => {
-    const { gameId, userId, score, wonPrize } = req.body;
+  // Games: Pay Entry Fee before starting game in Games Page
+  app.post('/api/games/pay-entry', (req, res) => {
+    const { gameId, userId } = req.body;
     const db = loadDB();
 
     const game = db.games.find(g => g.id === gameId);
     if (!game) return res.status(404).json({ error: 'Jwèt pa jwenn.' });
 
-    const user = db.users.find(u => u.id === userId);
+    const user = findUserInDB(db, userId);
+    if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn nan bazdone a.' });
+
+    const entryFee = Math.max(0, Number(game.entryFee) || 0);
+
+    if (entryFee > 0) {
+      if (user.balance < entryFee) {
+        return res.status(400).json({
+          error: `Balans ou (${user.balance} HT) pa ase pou peye frè ${entryFee} HT la. Tanpri fè yon depo sou NatCash.`,
+          required: entryFee,
+          balance: user.balance
+        });
+      }
+
+      user.balance -= entryFee;
+
+      // Add to transactions ledger
+      const tx = {
+        id: 'tx_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+        referenceId: generateRef('FEE'),
+        userId: user.id,
+        userName: user.fullName || user.username,
+        userPhone: user.phone || '',
+        type: 'frè_jwèt',
+        amount: entryFee,
+        fee: 0,
+        netAmount: entryFee,
+        status: 'konfime' as const,
+        date: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        description: `Peman frè jwèt pou "${game.title}" nan Sal Jwèt (Pri: ${entryFee} HT)`,
+        metadata: {
+          gameId: game.id,
+          gameTitle: game.title,
+          source: 'sal_jwet'
+        }
+      };
+      if (!db.transactions) db.transactions = [];
+      db.transactions.unshift(tx);
+
+      addNotification(
+        db,
+        user.id,
+        `Peman Jwèt Reyisi (${game.title})`,
+        `Ou peye ${entryFee} HT pou w jwe ${game.title} nan Sal Jwèt la. Bon chans!`,
+        'anons'
+      );
+
+      logAudit(
+        db,
+        'PEMAN_FRÈ_JWÈT',
+        `Itilizatè ${user.fullName} (${user.id}) peye ${entryFee} HT pou jwe jwèt "${game.title}". Nouvo balans: ${user.balance} HT`,
+        user.fullName
+      );
+
+      saveDB(db);
+    }
+
+    const { pinHash, ...safeUser } = user;
+    return res.json({ success: true, user: safeUser, game, feePaid: entryFee });
+  });
+
+  // Games: Play / Record Result
+  app.post('/api/games/play', (req, res) => {
+    const { gameId, userId, score, wonPrize, skipFee } = req.body;
+    const db = loadDB();
+
+    const game = db.games.find(g => g.id === gameId);
+    if (!game) return res.status(404).json({ error: 'Jwèt pa jwenn.' });
+
+    const user = findUserInDB(db, userId);
     if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn.' });
 
-    // Handle fee if applicable
-    if (game.isPaid && game.entryFee > 0) {
+    // Handle fee if applicable and not already skipped/paid at game start
+    if (!skipFee && game.isPaid && game.entryFee > 0) {
       if (user.balance < game.entryFee) {
         return res.status(400).json({ error: `Balans ou pa ase pou peye ${game.entryFee} HT.` });
       }
       user.balance -= game.entryFee;
+
+      const tx = {
+        id: 'tx_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+        referenceId: generateRef('FEE'),
+        userId: user.id,
+        userName: user.fullName || user.username,
+        userPhone: user.phone || '',
+        type: 'frè_jwèt',
+        amount: game.entryFee,
+        fee: 0,
+        netAmount: game.entryFee,
+        status: 'konfime' as const,
+        date: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        description: `Peman frè jwèt pou "${game.title}" nan Sal Jwèt (Pri: ${game.entryFee} HT)`,
+        metadata: { gameId: game.id, gameTitle: game.title, source: 'sal_jwet' }
+      };
+      if (!db.transactions) db.transactions = [];
+      db.transactions.unshift(tx);
     }
 
     // If prize won
     if (wonPrize && typeof wonPrize === 'number' && wonPrize > 0) {
       user.balance += wonPrize;
-      addNotification(db, userId, `Gayan nan ${game.title} !`, `Ou genyen ${wonPrize} HT sou jwèt ${game.title} !`, 'rezilta');
+      addNotification(db, user.id, `Gayan nan ${game.title} !`, `Ou genyen ${wonPrize} HT sou jwèt ${game.title} !`, 'rezilta');
     }
 
     // Update high scores
     if (score && score > 0) {
+      if (!game.highScores) game.highScores = [];
       game.highScores.push({
-        userId,
+        userId: user.id,
         userName: user.fullName,
         score,
         date: new Date().toISOString().split('T')[0]
@@ -2745,8 +4965,15 @@ async function startServer() {
     }
 
     const db = loadDB();
-    const user = db.users.find(u => u.id === userId);
+    const user = findUserInDB(db, userId);
     if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn.' });
+    if (user.certificationStatus !== 'sètifye' && user.role !== 'ADMIN' && !user.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        code: 'NOT_CERTIFIED',
+        error: 'Kont ou poko sètifye. Tanpri tann validasyon Administratè a anvan ou ka fè depo.'
+      });
+    }
 
     const newTx = {
       id: 'tx_' + Date.now(),
@@ -2792,8 +5019,15 @@ async function startServer() {
     }
 
     const db = loadDB();
-    const user = db.users.find(u => u.id === userId);
+    const user = findUserInDB(db, userId);
     if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn.' });
+    if (user.certificationStatus !== 'sètifye' && user.role !== 'ADMIN' && !user.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        code: 'NOT_CERTIFIED',
+        error: 'Kont ou poko sètifye. Tanpri tann validasyon Administratè a anvan ou ka fè retrè.'
+      });
+    }
 
     const numAmount = Number(amount);
     const availableBalance = user.balance - (user.reservedBalance || 0);
@@ -2869,10 +5103,332 @@ async function startServer() {
   app.post('/api/admin/verify-pin', (req, res) => {
     const { pin } = req.body;
     const db = loadDB();
-    if (pin === db.adminPin) {
+    const normalizedInput = String(pin || '').trim().toLowerCase();
+    const normalizedAdminPin = String(db.adminPin || 'prince509').trim().toLowerCase();
+    if (normalizedInput && normalizedInput === normalizedAdminPin) {
       return res.json({ success: true, authorized: true });
     }
     return res.status(401).json({ error: 'Kòd sekirite administratè a pa kòrèk.' });
+  });
+
+  // Admin: Verify Server Session
+  app.post('/api/admin/verify-session', (req, res) => {
+    const { userId, adminToken } = req.body;
+    if (!userId || !adminToken) {
+      return res.status(403).json({ success: false, authorized: false, error: 'Paj sa a entèdi.' });
+    }
+    const db = loadDB();
+    const session = db.adminSessions?.[adminToken];
+    const user = findUserInDB(db, userId);
+    if (!session || !user || session.userId !== user.id || (user.role !== 'ADMIN' && !user.isAdmin)) {
+      return res.status(403).json({ success: false, authorized: false, error: 'Paj sa a entèdi.' });
+    }
+    return res.json({ success: true, authorized: true });
+  });
+
+  // Account Certification: Get status from database
+  app.get('/api/users/:id/certification', (req, res) => {
+    const db = loadDB();
+    const user = findUserInDB(db, req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'Itilizatè pa jwenn nan bazdone a.' });
+    }
+    const { pinHash, ...safeUser } = user as any;
+    return res.json({
+      success: true,
+      verified: Boolean(user.verified || user.certificationStatus === 'sètifye' || user.role === 'ADMIN' || user.isAdmin),
+      certificationStatus: user.certificationStatus || 'non_sètifye',
+      certifiedAt: user.certifiedAt,
+      certifiedBy: user.certifiedBy,
+      user: safeUser,
+    });
+  });
+
+  // Admin: Certify a user account
+  app.post('/api/admin/certify-user', (req, res) => {
+    const { userId, adminId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'userId obligatwa.' });
+    }
+    const db = loadDB();
+    const user = findUserInDB(db, userId);
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'Itilizatè pa jwenn nan bazdone a.' });
+    }
+
+    const nowIso = new Date().toISOString();
+    user.certificationStatus = 'sètifye';
+    user.verified = true;
+    user.certifiedAt = nowIso;
+    user.certifiedBy = adminId || 'Administratè MASTER PLAY';
+    user.isVerifiedInDatabase = true;
+    user.verifiedInDatabaseAt = user.verifiedInDatabaseAt || nowIso;
+
+    saveUserToVault(user);
+    addNotification(
+      db,
+      user.id,
+      'Kont ou Sètifye ✅',
+      'Felisitasyon! Administratè MASTER PLAY valide epi sètifye kont ou. Kounye a ou gen aksè ak tout fonksyon platfòm nan.',
+      'anons'
+    );
+    logAudit(
+      db,
+      'SETIFIKASYON_KONT',
+      `Kont sètifye pou ${user.fullName} (${user.masterPlayId || user.id})`,
+      adminId || 'Administratè'
+    );
+    saveDB(db);
+
+    const { pinHash, ...safeUser } = user as any;
+    return res.json({
+      success: true,
+      user: safeUser,
+      message: 'Kont itilizatè a sètifye avèk siksè.',
+    });
+  });
+
+  // Admin: Revoke certification from a user account
+  app.post('/api/admin/uncertify-user', (req, res) => {
+    const { userId, adminId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'userId obligatwa.' });
+    }
+    const db = loadDB();
+    const user = findUserInDB(db, userId);
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'Itilizatè pa jwenn nan bazdone a.' });
+    }
+    if (user.role === 'ADMIN' || user.isAdmin) {
+      return res.status(403).json({ success: false, error: 'Pa kapab retire sètifikasyon sou kont Administratè a.' });
+    }
+
+    user.certificationStatus = 'non_sètifye';
+    user.verified = false;
+    user.certifiedAt = undefined;
+    user.certifiedBy = undefined;
+
+    saveUserToVault(user);
+    addNotification(
+      db,
+      user.id,
+      'Sètifikasyon Kont Retire',
+      'Administratè MASTER PLAY retire sètifikasyon kont ou pou kounye a.',
+      'anons'
+    );
+    logAudit(
+      db,
+      'RETIRE_SETIFIKASYON',
+      `Sètifikasyon retire pou ${user.fullName} (${user.masterPlayId || user.id})`,
+      adminId || 'Administratè'
+    );
+    saveDB(db);
+
+    const { pinHash, ...safeUser } = user as any;
+    return res.json({
+      success: true,
+      user: safeUser,
+      message: 'Sètifikasyon kont la retire avèk siksè.',
+    });
+  });
+
+  // --- GLOBAL APP MEMORY & SYNCHRONIZATION ROUTES ---
+
+  // Idempotent Sync Endpoint for offline/queued client mutations
+  app.post('/api/memory/sync', (req, res) => {
+    try {
+      const { userId, clientMutationId, actionType, pageOrFeature, data: payloadData } = req.body;
+      if (!actionType || !pageOrFeature) {
+        return res.status(400).json({ success: false, error: 'actionType ak pageOrFeature obligatwa.' });
+      }
+      const db = loadDB();
+      if (!db.globalMemory) {
+        db.globalMemory = {
+          schemaVersion: 1,
+          dataVersion: 1,
+          lastUpdatedAt: new Date().toISOString(),
+          backupSnapshots: [],
+          events: [],
+          syncErrors: [],
+          processedMutationIds: [],
+        };
+      }
+
+      if (clientMutationId && db.globalMemory.processedMutationIds.includes(clientMutationId)) {
+        return res.json({
+          success: true,
+          alreadyProcessed: true,
+          dataVersion: db.globalMemory.dataVersion,
+        });
+      }
+
+      if (userId && userId !== 'system') {
+        const user = findUserInDB(db, userId);
+        if (!user) {
+          db.globalMemory.syncErrors.unshift({
+            id: 'syserr_' + Date.now(),
+            userId,
+            actionType,
+            error: 'Itilizatè pa jwenn pandan synchronization',
+            timestamp: new Date().toISOString(),
+          });
+          if (db.globalMemory.syncErrors.length > 200) {
+            db.globalMemory.syncErrors = db.globalMemory.syncErrors.slice(0, 200);
+          }
+          saveDB(db);
+          return res.status(404).json({ success: false, error: 'Itilizatè pa jwenn.' });
+        }
+      }
+
+      const evt = recordMemoryEvent(db, {
+        userId: userId || 'system',
+        actionType,
+        pageOrFeature,
+        result: 'success',
+        data: payloadData,
+        clientMutationId,
+      });
+
+      if (clientMutationId) {
+        db.globalMemory.processedMutationIds.unshift(clientMutationId);
+        if (db.globalMemory.processedMutationIds.length > 2000) {
+          db.globalMemory.processedMutationIds = db.globalMemory.processedMutationIds.slice(0, 2000);
+        }
+      }
+
+      saveDB(db);
+      return res.json({
+        success: true,
+        alreadyProcessed: false,
+        event: evt,
+        dataVersion: db.globalMemory.dataVersion,
+      });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message || 'Erè nan synchronization.' });
+    }
+  });
+
+  // Single-source-of-truth User Memory Snapshot
+  app.get('/api/memory/user/:userId', (req, res) => {
+    const db = loadDB();
+    const user = findUserInDB(db, req.params.userId);
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'Itilizatè pa jwenn nan memwa global la.' });
+    }
+    const { pinHash, ...safeUser } = user as any;
+    const events = (db.globalMemory?.events || [])
+      .filter((e) => e.userId === user.id)
+      .slice(0, 50);
+    return res.json({
+      success: true,
+      user: {
+        ...safeUser,
+        verified: Boolean(user.verified || user.certificationStatus === 'sètifye' || user.role === 'ADMIN' || user.isAdmin),
+      },
+      events,
+      dataVersion: db.globalMemory?.dataVersion || 1,
+    });
+  });
+
+  // Admin: Global Memory & Database System Overview
+  app.get('/api/admin/memory-overview', (_req, res) => {
+    const db = loadDB();
+    const posts = db.posts || [];
+    const videosCount = posts.filter((p) => p.mediaType === 'video' || p.videoUrl || (p as any).videoMasterUrl || p.tiktokUrl).length;
+    let scoresCount = 0;
+    (db.competitions || []).forEach((c: any) => {
+      if (Array.isArray(c.scores)) scoresCount += c.scores.length;
+    });
+    (db.games || []).forEach((g: any) => {
+      if (Array.isArray(g.highScores)) scoresCount += g.highScores.length;
+    });
+    const needsVerificationUsers = (db.users || [])
+      .filter((u) => !u.verified && u.certificationStatus !== 'sètifye' && u.role !== 'ADMIN' && !u.isAdmin)
+      .map((u) => ({
+        id: u.id,
+        fullName: u.fullName,
+        phoneNumber: u.phoneNumber,
+        masterPlayId: u.masterPlayId,
+        createdAt: u.createdAt,
+      }));
+
+    return res.json({
+      success: true,
+      overview: {
+        stats: {
+          usersCount: (db.users || []).length,
+          publicationsCount: posts.length,
+          videosCount,
+          competitionsCount: (db.competitions || []).length,
+          scoresCount,
+          transactionsCount: (db.transactions || []).length,
+          eventsCount: (db.globalMemory?.events || []).length,
+          needsVerificationCount: needsVerificationUsers.length,
+          syncErrorsCount: (db.globalMemory?.syncErrors || []).length,
+        },
+        backupStatus: {
+          schemaVersion: db.globalMemory?.schemaVersion || 1,
+          dataVersion: db.globalMemory?.dataVersion || 1,
+          lastUpdatedAt: db.globalMemory?.lastUpdatedAt || new Date().toISOString(),
+          lastBackupAt: db.globalMemory?.lastBackupAt,
+          lastBackupVersion: db.globalMemory?.lastBackupVersion,
+          snapshots: db.globalMemory?.backupSnapshots || [],
+        },
+        recentEvents: (db.globalMemory?.events || []).slice(0, 60),
+        syncErrors: (db.globalMemory?.syncErrors || []).slice(0, 30),
+        needsVerificationUsers,
+      },
+    });
+  });
+
+  // Admin: Create Immediate Versioned Backup Snapshot
+  app.post('/api/admin/memory-backup', (req, res) => {
+    const db = loadDB();
+    const meta = createBackupSnapshot(db);
+    if (!meta) {
+      return res.status(500).json({ success: false, error: 'Pa kapab kreye backup la.' });
+    }
+    recordMemoryEvent(db, {
+      userId: req.body?.adminId || 'admin',
+      actionType: 'BACKUP_CREATED',
+      pageOrFeature: 'AdminPortal / Memwa Database',
+      result: 'success',
+      data: { fileName: meta.fileName, version: meta.version, checksum: meta.checksum },
+    });
+    logAudit(db, 'BACKUP_DATABASE', `Nouvo backup v${meta.version} kreye (${meta.fileName})`, req.body?.adminId || 'Administratè');
+    saveDB(db);
+    return res.json({ success: true, snapshot: meta });
+  });
+
+  // Admin: Restore from Versioned Backup Snapshot (requires explicit confirmation)
+  app.post('/api/admin/memory-restore', (req, res) => {
+    const { fileName, confirmRestore, adminId } = req.body;
+    if (!confirmRestore || !fileName) {
+      return res.status(400).json({ success: false, error: 'Konfimasyon ak non fichye backup la obligatwa.' });
+    }
+    const safeName = path.basename(String(fileName));
+    const targetPath = path.resolve(BACKUP_DIR, safeName);
+    if (!fs.existsSync(targetPath)) {
+      return res.status(404).json({ success: false, error: 'Fichye backup sa a pa jwenn.' });
+    }
+    try {
+      const restored: DBState = JSON.parse(fs.readFileSync(targetPath, 'utf-8'));
+      if (!restored || !Array.isArray(restored.users) || restored.users.length === 0) {
+        return res.status(400).json({ success: false, error: 'Fichye backup la pa valid oswa li vid.' });
+      }
+      logAudit(restored, 'RESTORE_DATABASE', `Bazdone restore depi backup ${safeName}`, adminId || 'Administratè');
+      recordMemoryEvent(restored, {
+        userId: adminId || 'admin',
+        actionType: 'BACKUP_RESTORED',
+        pageOrFeature: 'AdminPortal / Memwa Database',
+        result: 'success',
+        data: { fileName: safeName },
+      });
+      saveDB(restored);
+      return res.json({ success: true, message: `Bazdone restore avèk siksè depi ${safeName}.` });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message || 'Erè pandan restore backup la.' });
+    }
   });
 
   // Admin: Change PIN
@@ -2914,8 +5470,32 @@ async function startServer() {
       competitions: db.competitions,
       posts: db.posts,
       games: db.games,
+      dailyLevelRecords: (db.dailyLevelRecords || []).slice(-200).reverse(),
       auditLogs: db.auditLogs.slice(0, 50)
     });
+  });
+
+  // Admin: Get all recorded competition level scores with filtering
+  app.get('/api/admin/competition-score-records', (req, res) => {
+    try {
+      const db = loadDB();
+      const records = (db.dailyLevelRecords || []).map(r => {
+        const comp = db.competitions.find(c => c.id === r.competitionId);
+        const user = db.users.find(u => u.id === r.userId);
+        const game = db.games.find(g => g.id === r.gameId);
+        return {
+          ...r,
+          competitionName: r.competitionName || comp?.name || r.competitionId,
+          userName: r.userName || user?.fullName || 'Jwè Enkoni',
+          userPhone: r.userPhone || user?.phoneNumber || '',
+          gameTitle: r.gameTitle || game?.title || r.gameId
+        };
+      }).reverse();
+
+      return res.json({ success: true, records });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message || 'Erè nan chaje nòt konpetisyon yo.' });
+    }
   });
 
   // Admin: Review Transaction (Approve / Reject)
@@ -2933,7 +5513,7 @@ async function startServer() {
       return res.status(400).json({ error: `Tranzaksyon sa a te deja ${tx.status}.` });
     }
 
-    const user = db.users.find(u => u.id === tx.userId);
+    const user = findUserInDB(db, tx.userId);
     if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn.' });
 
     tx.status = status;
@@ -3186,6 +5766,133 @@ async function startServer() {
     logAudit(db, 'CHWAZI_JWÈT_KONPETISYON', `Jwèt otorize pou ${comp.name} mete ajou (${authorizedGameIds.length} jwèt)`, 'Prince509');
     saveDB(db);
     return res.json({ success: true, competition: comp });
+  });
+
+  // Admin: Update Competition Entry Fee & Prizes (Requirement 2)
+  app.post('/api/admin/competitions/:id/pricing-prizes', (req, res) => {
+    try {
+      const { entryFee, firstPrize, secondPrize, thirdPrize } = req.body;
+      const db = loadDB();
+      const comp = db.competitions.find(c => c.id === req.params.id);
+      if (!comp) return res.status(404).json({ error: 'Konpetisyon pa jwenn.' });
+
+      if (entryFee !== undefined) {
+        comp.entryFee = Math.max(0, Number(entryFee));
+      }
+
+      if (!comp.prizes) {
+        comp.prizes = { first: '50,000 HT', second: '25,000 HT', third: '10,000 HT' };
+      }
+
+      if (firstPrize !== undefined && String(firstPrize).trim()) {
+        comp.prizes.first = String(firstPrize).trim();
+      }
+      if (secondPrize !== undefined && String(secondPrize).trim()) {
+        comp.prizes.second = String(secondPrize).trim();
+      }
+      if (thirdPrize !== undefined && String(thirdPrize).trim()) {
+        comp.prizes.third = String(thirdPrize).trim();
+      }
+
+      logAudit(
+        db,
+        'MODIFIE_PRI_AK_PRIM_KONPETISYON',
+        `Pri ak prim modifye pou "${comp.name}" (Pri Enskripsyon: ${comp.entryFee} HT, 1ye: ${comp.prizes.first}, 2èm: ${comp.prizes.second}, 3èm: ${comp.prizes.third})`,
+        'Prince509'
+      );
+
+      saveDB(db);
+      return res.json({
+        success: true,
+        competition: comp,
+        message: 'Pri enskripsyon ak prim konpetisyon an mete ajou avèk siksè nan bazdone a.'
+      });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message || 'Erè nan modifye pri ak prim yo.' });
+    }
+  });
+
+  // Admin: Download Competition Results CSV (Requirement 4)
+  app.get('/api/admin/competitions/:id/download-results', (req, res) => {
+    try {
+      const db = loadDB();
+      const comp = db.competitions.find(c => c.id === req.params.id);
+      if (!comp) return res.status(404).json({ error: 'Konpetisyon pa jwenn.' });
+
+      const safeName = comp.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const filename = `Rezilta_Klasman_${safeName}_${new Date().toISOString().split('T')[0]}.csv`;
+
+      let csv = '\uFEFF'; // UTF-8 BOM for Excel & Mobile compatibility
+
+      // Section 1: Header metadata
+      csv += `MASTER PLAY - RAPÒ OFISYÈL REZILTA KONPETISYON\r\n`;
+      csv += `Non Konpetisyon,${comp.name.replace(/,/g, ' ')}\r\n`;
+      csv += `ID Konpetisyon,${comp.id}\r\n`;
+      csv += `Estati Aktyèl,${comp.status || 'Aktif'}\r\n`;
+      csv += `Jounen Aktyèl,${comp.currentDay || 'Lendi'}\r\n`;
+      csv += `Frè Enskripsyon,${comp.entryFee} HT\r\n`;
+      csv += `Total Patisipan Enskri,${comp.registeredUserIds?.length || 0}\r\n`;
+      csv += `Prim 1ye Plas,${comp.prizes?.first || '50,000 HT'}\r\n`;
+      csv += `Prim 2èm Plas,${comp.prizes?.second || '25,000 HT'}\r\n`;
+      csv += `Prim 3èm Plas,${comp.prizes?.third || '10,000 HT'}\r\n`;
+      csv += `Dat & Lè Ekstraksyon,${new Date().toISOString()}\r\n\r\n`;
+
+      // Section 2: Leaderboard (Klasman)
+      csv += `=== TABLO KLASMAN OFISYÈL (LEADERBOARD) ===\r\n`;
+      csv += `Pozisyon,Non Jwè a,ID Itilizatè,Nimewo Telefòn,Total Pwen,Nivo,Etwal,Match Genyen,Vòt Fanatik,Kado Resevwa (Valè HT),Dat Enskripsyon\r\n`;
+
+      const scores = [...(comp.scores || [])].sort((a, b) => b.totalScore - a.totalScore);
+      scores.forEach((s, idx) => {
+        const rank = s.rank || (idx + 1);
+        const fullName = (s.fullName || 'Jwè Enkoni').replace(/,/g, ' ');
+        const phone = (s.phoneNumber || '').replace(/,/g, ' ');
+        const total = s.totalScore || 0;
+        const lvl = s.level || 1;
+        const stars = s.stars || 1;
+        const matchesWon = s.matchesWon || 0;
+        const votes = s.votesCount || 0;
+        const giftVal = s.giftsValue || 0;
+        const regDate = s.registrationDate || '';
+        csv += `${rank},${fullName},${s.userId},${phone},${total},${lvl},${stars},${matchesWon},${votes},${giftVal},${regDate}\r\n`;
+      });
+
+      csv += `\r\n`;
+
+      // Section 3: VS Matches
+      csv += `=== REZILTA TOUT MATCH FAS-A-FAS (VS MATCHES) ===\r\n`;
+      csv += `ID Match,Faz / Round,Non Jwè 1,Nòt Jwè 1,Vòt Jwè 1,Non Jwè 2,Nòt Jwè 2,Vòt Jwè 2,Gayan Match,Rezilta Final,Estati Match,Jwèt Match,Dat / Orè\r\n`;
+
+      const matches = comp.matches || [];
+      if (matches.length === 0) {
+        csv += `Pa gen match VS ki pwograme pou konpetisyon sa a ankò.\r\n`;
+      } else {
+        matches.forEach(m => {
+          const matchId = m.id;
+          const round = (m.round || '').replace(/,/g, ' ');
+          const p1Name = (m.player1?.fullName || 'Jwè 1').replace(/,/g, ' ');
+          const p1Score = m.player1?.score ?? 0;
+          const p1Votes = m.votes1 ?? (m.player1?.votesCount ?? 0);
+          const p2Name = (m.player2?.fullName || 'Jwè 2').replace(/,/g, ' ');
+          const p2Score = m.player2?.score ?? 0;
+          const p2Votes = m.votes2 ?? (m.player2?.votesCount ?? 0);
+          const winnerName = m.winnerId
+            ? (m.winnerId === m.player1?.userId ? p1Name : p2Name)
+            : (m.status === 'Fini' ? (p1Score > p2Score ? p1Name : p2Name) : 'An atant');
+          const finalResult = `${p1Score} - ${p2Score}`;
+          const status = (m.status || 'Pwograme').replace(/,/g, ' ');
+          const gameTitle = (m.gameTitle || '').replace(/,/g, ' ');
+          const dateStr = (m.date || m.scheduledTime || '').replace(/,/g, ' ');
+
+          csv += `${matchId},${round},${p1Name},${p1Score},${p1Votes},${p2Name},${p2Score},${p2Votes},${winnerName},${finalResult},${status},${gameTitle},${dateStr}\r\n`;
+        });
+      }
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      return res.send(csv);
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message || 'Erè pandan telechaje rezilta yo.' });
+    }
   });
 
   // Admin: Advance 7-Day Competition Day
@@ -3497,6 +6204,243 @@ async function startServer() {
     return res.json({ success: true, competition: comp });
   });
 
+  // Admin: 1. Verify / Permanently register user account in database (Requirement 1)
+  app.post('/api/admin/users/:id/verify-db', (req, res) => {
+    const db = loadDB();
+    const user = findUserInDB(db, req.params.id);
+    if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn nan bazdone a.' });
+
+    user.isVerifiedInDatabase = true;
+    user.verifiedInDatabaseAt = new Date().toISOString();
+
+    addNotification(
+      db,
+      user.id,
+      'Kont verifye nan Bazdone a !',
+      'Administratè a verifye epi anrejistre kont ou an pèmanans nan bazdone MASTER PLAY la. Tout done ou yo rete an sekirite.',
+      'anons'
+    );
+
+    logAudit(db, 'ANREJISTRE_ITILIZATE_BAZDONE', `Kont ${user.fullName} (${user.id}) anrejistre epi verifye nan bazdone a pa Admin`, 'Prince509');
+    saveDB(db);
+
+    const { pinHash, ...safeUser } = user;
+    return res.json({
+      success: true,
+      user: safeUser,
+      message: `Kont ${user.fullName} anrejistre epi verifye pèmanan nan bazdone a avèk siksè !`
+    });
+  });
+
+  // Admin: 2A. Delete Competition with Confirmation (Requirement 2)
+  app.delete('/api/admin/competitions/:id', (req, res) => {
+    const db = loadDB();
+    const compIdx = db.competitions.findIndex(c => c.id === req.params.id);
+    if (compIdx === -1) return res.status(404).json({ error: 'Konpetisyon pa jwenn.' });
+
+    const deletedName = db.competitions[compIdx].name;
+    const deletedId = db.competitions[compIdx].id;
+    db.competitions.splice(compIdx, 1);
+
+    // Clean up dailyLevelRecords for this competition to keep DB lean
+    if (db.dailyLevelRecords) {
+      db.dailyLevelRecords = db.dailyLevelRecords.filter(r => r.competitionId !== deletedId);
+    }
+
+    logAudit(db, 'EFASE_KONPETISYON', `Konpetisyon "${deletedName}" (${deletedId}) efase nèt pa administratè a`, 'Prince509');
+    saveDB(db);
+
+    return res.json({
+      success: true,
+      message: `Konpetisyon "${deletedName}" efase avèk siksè nan bazdone a.`
+    });
+  });
+
+  // Admin: 2B. Delete VS Match with Confirmation (Requirement 2)
+  app.delete('/api/admin/competitions/:id/matches/:matchId', (req, res) => {
+    const db = loadDB();
+    const comp = db.competitions.find(c => c.id === req.params.id);
+    if (!comp) return res.status(404).json({ error: 'Konpetisyon pa jwenn.' });
+
+    if (!comp.matches) comp.matches = [];
+    const matchIdx = comp.matches.findIndex(m => m.id === req.params.matchId);
+    if (matchIdx === -1) return res.status(404).json({ error: 'Match pa jwenn nan konpetisyon sa a.' });
+
+    const deletedMatch = comp.matches[matchIdx];
+    comp.matches.splice(matchIdx, 1);
+
+    logAudit(db, 'EFASE_MATCH_VS', `Match ${deletedMatch.id} (${deletedMatch.player1?.fullName} vs ${deletedMatch.player2?.fullName}) efase nan ${comp.name}`, 'Prince509');
+    saveDB(db);
+
+    return res.json({
+      success: true,
+      competition: comp,
+      message: `Match la efase avèk siksè.`
+    });
+  });
+
+  // Admin: 3. Clean/Reset Leaderboard for Competition (Requirement 3)
+  app.post('/api/admin/competitions/:id/reset-leaderboard', (req, res) => {
+    const db = loadDB();
+    const comp = db.competitions.find(c => c.id === req.params.id);
+    if (!comp) return res.status(404).json({ error: 'Konpetisyon pa jwenn.' });
+
+    const prevCount = comp.scores?.length || 0;
+    // Reset leaderboard scores and top 8 qualified for this specific competition
+    comp.scores = [];
+    comp.top8QualifiedUserIds = [];
+
+    // Also reset daily level records for this competition only (does not delete users or accounts)
+    if (db.dailyLevelRecords) {
+      db.dailyLevelRecords = db.dailyLevelRecords.filter(r => r.competitionId !== comp.id);
+    }
+
+    logAudit(db, 'NETWAYE_KLASMAN', `Tablo klasman ${comp.name} netwaye pa administratè a (${prevCount} nòt efase)`, 'Prince509');
+    saveDB(db);
+
+    return res.json({
+      success: true,
+      competition: comp,
+      message: `Klasman pou "${comp.name}" netwaye avèk siksè ! Tout kont itilizatè yo konsève entak.`
+    });
+  });
+
+  // Admin: 4. Pay 1st, 2nd, or 3rd Prize directly to Winner Account (Requirement 4)
+  app.post('/api/admin/competitions/:id/pay-prize', (req, res) => {
+    const { place } = req.body; // 'first' | 'second' | 'third'
+    if (!place || !['first', 'second', 'third'].includes(place)) {
+      return res.status(400).json({ error: 'Plas la dwe: first, second oswa third.' });
+    }
+
+    const db = loadDB();
+    const comp = db.competitions.find(c => c.id === req.params.id);
+    if (!comp) return res.status(404).json({ error: 'Konpetisyon pa jwenn.' });
+
+    if (!comp.prizesPaid) {
+      comp.prizesPaid = {};
+    }
+
+    // Check if already paid
+    if (comp.prizesPaid[place as 'first' | 'second' | 'third']) {
+      return res.status(400).json({
+        error: `Prim pou ${place === 'first' ? '1ye' : place === 'second' ? '2èm' : '3èm'} plas la deja peye !`
+      });
+    }
+
+    // Determine target amount from competition configured prizes
+    const rawPrizeStr = place === 'first' ? comp.prizes?.first : place === 'second' ? comp.prizes?.second : comp.prizes?.third;
+    const parsedAmount = parseInt(String(rawPrizeStr || '').replace(/\D/g, ''), 10);
+    if (!parsedAmount || isNaN(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ error: `Kantite kòb pou plas ${place} pa valab oswa pa defini nan pri konpetisyon an.` });
+    }
+
+    // Determine winner user
+    let targetUserId = '';
+    let targetUserName = '';
+
+    // Check explicit winners object first
+    if (comp.winners && comp.winners[place as 'first' | 'second' | 'third']?.userId) {
+      targetUserId = comp.winners[place as 'first' | 'second' | 'third']!.userId;
+      targetUserName = comp.winners[place as 'first' | 'second' | 'third']!.name;
+    } else if (place === 'first' && comp.champion?.userId) {
+      targetUserId = comp.champion.userId;
+      targetUserName = comp.champion.fullName;
+    } else if (place === 'second' && comp.runnerUp?.userId) {
+      targetUserId = comp.runnerUp.userId;
+      targetUserName = comp.runnerUp.fullName;
+    } else {
+      // Fallback: Check leaderboard rankings
+      const sortedScores = [...(comp.scores || [])].sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
+      const targetIdx = place === 'first' ? 0 : place === 'second' ? 1 : 2;
+      if (sortedScores[targetIdx]) {
+        targetUserId = sortedScores[targetIdx].userId;
+        targetUserName = sortedScores[targetIdx].fullName;
+      }
+    }
+
+    if (!targetUserId) {
+      return res.status(400).json({
+        error: `Pa gen okenn itilizatè ki idantifye kòm ${place === 'first' ? '1ye' : place === 'second' ? '2èm' : '3èm'} plas nan konpetisyon an.`
+      });
+    }
+
+    const winnerUser = findUserInDB(db, targetUserId);
+    if (!winnerUser) {
+      return res.status(404).json({ error: `Kont itilizatè gayan an (${targetUserId}) pa jwenn nan bazdone a.` });
+    }
+
+    // Pay money directly to winner's balance
+    winnerUser.balance += parsedAmount;
+
+    // Mark prize as paid on the competition
+    const nowIso = new Date().toISOString();
+    comp.prizesPaid[place as 'first' | 'second' | 'third'] = true;
+    if (place === 'first') {
+      comp.prizesPaid.firstPaidAt = nowIso;
+      comp.prizesPaid.firstRecipientId = winnerUser.id;
+    } else if (place === 'second') {
+      comp.prizesPaid.secondPaidAt = nowIso;
+      comp.prizesPaid.secondRecipientId = winnerUser.id;
+    } else if (place === 'third') {
+      comp.prizesPaid.thirdPaidAt = nowIso;
+      comp.prizesPaid.thirdRecipientId = winnerUser.id;
+    }
+
+    // Record formal transaction in financial ledger
+    const placeLabel = place === 'first' ? '1ye Plas (Chanpyon)' : place === 'second' ? '2èm Plas (Vis-Chanpyon)' : '3èm Plas';
+    const refId = generateRef('DEP');
+    db.transactions.unshift({
+      id: 'tx_prize_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      referenceId: refId,
+      userId: winnerUser.id,
+      userName: winnerUser.fullName,
+      userPhone: winnerUser.phoneNumber,
+      type: 'depo',
+      amount: parsedAmount,
+      natcashName: winnerUser.fullName,
+      natcashPhone: winnerUser.phoneNumber,
+      status: 'konfime',
+      createdAt: nowIso,
+      reviewedAt: nowIso,
+      reviewedBy: 'Administratè MASTER PLAY',
+      metadata: {
+        reason: 'prim_konpetisyon',
+        competitionId: comp.id,
+        competitionName: comp.name,
+        place,
+        placeLabel,
+        description: `Peman prim ofisyèl ${placeLabel} nan ${comp.name}`
+      }
+    });
+
+    // Notify user
+    addNotification(
+      db,
+      winnerUser.id,
+      `Peman Prim ${placeLabel} Resevwa !`,
+      `Felisitasyon ${winnerUser.fullName}! Administratè a voye ${parsedAmount.toLocaleString()} HT sou balans ou pou prim ${placeLabel} nan ${comp.name}.`,
+      'rezilta'
+    );
+
+    logAudit(
+      db,
+      'PEYE_PRIM_KONPETISYON',
+      `Prim ${placeLabel} (${parsedAmount} HT) peye bay ${winnerUser.fullName} (${winnerUser.id}) pou ${comp.name}`,
+      'Prince509'
+    );
+
+    saveDB(db);
+
+    return res.json({
+      success: true,
+      competition: comp,
+      user: winnerUser,
+      amount: parsedAmount,
+      place,
+      message: `Prim ${parsedAmount.toLocaleString()} HT voye sou kont ${winnerUser.fullName} avèk siksè pou ${placeLabel} !`
+    });
+  });
+
   // Admin: Create Post (Text, Photos with preview, Video, TikTok)
   app.post('/api/admin/posts', (req, res) => {
     const { title, description, mediaType, mediaUrl, mediaUrls, videoUrl, tiktokUrl, pinned } = req.body;
@@ -3600,7 +6544,7 @@ async function startServer() {
   app.post('/api/admin/users/adjust-balance', (req, res) => {
     const { userId, amount, reason } = req.body;
     const db = loadDB();
-    const user = db.users.find(u => u.id === userId);
+    const user = findUserInDB(db, userId);
     if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn.' });
 
     const diff = Number(amount);
@@ -3700,7 +6644,7 @@ async function startServer() {
       }
 
       const db = loadDB();
-      const user = db.users.find(u => u.id === userId);
+      const user = findUserInDB(db, userId);
       if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn.' });
 
       if (!db.balonConfig) {
@@ -4104,7 +7048,7 @@ async function startServer() {
       const game = db.games.find(g => g.id === gameId);
       if (!game) return res.status(404).json({ error: 'Jwèt pa jwenn.' });
 
-      const user = db.users.find(u => u.id === userId);
+      const user = findUserInDB(db, userId);
       if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn.' });
 
       if (!db.userGameProgress) db.userGameProgress = {};
@@ -4195,7 +7139,7 @@ async function startServer() {
       const game = db.games.find(g => g.id === gameId);
       if (!game) return res.status(404).json({ error: 'Jwèt pa jwenn.' });
 
-      const user = db.users.find(u => u.id === userId);
+      const user = findUserInDB(db, userId);
       if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn.' });
 
       if (!db.userGameProgress) db.userGameProgress = {};
@@ -4465,7 +7409,7 @@ async function startServer() {
     try {
       const { userId } = req.params;
       const db = loadDB();
-      const user = db.users.find(u => u.id === userId);
+      const user = findUserInDB(db, userId);
       if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn.' });
 
       const activeRound = (db.avionCrashRounds || []).find(r => r.userId === userId && r.status === 'flying');
@@ -4533,7 +7477,7 @@ async function startServer() {
         return res.status(400).json({ error: `Miz maksimòm lan se ${config.maxBet} HTG.` });
       }
 
-      const user = db.users.find(u => u.id === userId);
+      const user = findUserInDB(db, userId);
       if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn.' });
 
       const availableBalance = user.balance - (user.reservedBalance || 0);
@@ -4710,7 +7654,7 @@ async function startServer() {
       }
 
       // Cashout verified and approved!
-      const user = db.users.find(u => u.id === userId);
+      const user = findUserInDB(db, userId);
       if (!user) return res.status(404).json({ error: 'Itilizatè pa jwenn.' });
 
       const payout = Math.round(round.betAmount * reqMult);
@@ -4876,16 +7820,151 @@ async function startServer() {
     }
   });
 
+  // 12. Push Notification Subscription endpoint
+  app.post('/api/notifications/subscribe', (req, res) => {
+    try {
+      const { userId, subscription } = req.body;
+      if (!subscription) return res.status(400).json({ error: 'subscription obligatwa.' });
+
+      const db = loadDB();
+      if (!db.pushSubscriptions) db.pushSubscriptions = [];
+
+      const existingIdx = db.pushSubscriptions.findIndex(s => s.userId === userId);
+      const entry = {
+        id: 'push_' + Date.now(),
+        userId: userId || 'guest',
+        endpoint: subscription.endpoint,
+        subscription,
+        createdAt: new Date().toISOString()
+      };
+
+      if (existingIdx >= 0) {
+        db.pushSubscriptions[existingIdx] = entry;
+      } else {
+        db.pushSubscriptions.push(entry);
+      }
+
+      saveDB(db);
+      return res.json({ success: true, message: 'Abònman notifikasyon anrejistre avèk siksè.' });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message || 'Erè nan anrejistre notifikasyon.' });
+    }
+  });
+
+  // Play Store Privacy Policy & Account Deletion Page
+  app.get(['/privacy', '/privacy-policy'], (_req, res) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(`<!DOCTYPE html>
+<html lang="ht">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Politik Konfidansyalite — MASTER PLAY</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; padding: 24px 16px; line-height: 1.65; }
+    .container { max-width: 780px; margin: 0 auto; background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 28px; }
+    h1 { color: #f8fafc; font-size: 1.75rem; margin-top: 0; border-bottom: 1px solid #334155; padding-bottom: 12px; }
+    h2 { color: #38bdf8; font-size: 1.15rem; margin-top: 24px; }
+    ul { padding-left: 20px; }
+    li { margin-bottom: 6px; }
+    .badge { display: inline-block; background: #0284c7; color: #fff; font-size: 0.78rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; margin-bottom: 12px; }
+    .contact { background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 16px; margin-top: 20px; }
+    a { color: #38bdf8; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <span class="badge">MASTER PLAY — Kèkè Challenge</span>
+    <h1>Politik Konfidansyalite (Privacy Policy)</h1>
+    <p><strong>Aplikasyon :</strong> MASTER PLAY - Kèkè Challenge (<code>com.masterplay.kekechallenge</code>)</p>
+    <p><strong>Dènye mizajou :</strong> ${new Date().toISOString().split('T')[0]}</p>
+
+    <h2>1. Enfòmasyon Nou Kolekte</h2>
+    <p>Pou pèmèt ou jwe, patisipe nan konpetisyon, ak pataje kontni sou MASTER PLAY, nou kolekte enfòmasyon sa yo lè ou kreye kont ou oswa itilize sèvis la :</p>
+    <ul>
+      <li><strong>Enfòmasyon pwofil :</strong> Non konplè, non itilizatè, nimewo telefòn, ak foto pwofil (opsyonèl).</li>
+      <li><strong>Aktivite nan aplikasyon an :</strong> Nòt jwèt (scores), klasman, piblikasyon videyo/foto, kòmantè, likes, ak patisipasyon nan konpetisyon.</li>
+      <li><strong>Tranzaksyon :</strong> Referans peman NatCash ak istorik tranzaksyon pou aktivasyon sèvis oswa rekonpans.</li>
+    </ul>
+
+    <h2>2. Pèmisyon Aparèy Nou Itilize</h2>
+    <p>Aplikasyon Android la mande sèlman pèmisyon ki nesesè pou fonksyonalite li yo :</p>
+    <ul>
+      <li><strong>Kamera (<code>CAMERA</code>) :</strong> Pou anrejistre videyo ak pran foto pou piblikasyon lè ou chwazi fè sa.</li>
+      <li><strong>Mikwofòn (<code>RECORD_AUDIO</code>) :</strong> Pou kaptire son pandan anrejistreman videyo nan Studio.</li>
+      <li><strong>Notifikasyon (<code>POST_NOTIFICATIONS</code>) :</strong> Pou avèti ou sou konpetisyon, rezilta, ak mesaj enpòtan.</li>
+      <li><strong>Entènèt (<code>INTERNET</code>) :</strong> Pou konekte ak sèvè MASTER PLAY ak sove done kont ou an sekirite.</li>
+    </ul>
+
+    <h2>3. Sekirite ak Pataj Done</h2>
+    <p>Done ou yo sove sou sèvè nou an ak pwoteksyon modpas chifre. Nou <strong>pa vann</strong> ni lwe enfòmasyon pèsonèl ou bay okenn twazyèm pati. Piblikasyon ak nòt ou chwazi pataje piblikman yo vizib pou lòt jwè sou platfòm nan.</p>
+
+    <h2>4. Sipresyon Kont ak Done (Account & Data Deletion)</h2>
+    <p>Ou gen dwa mande pou nou efase kont ou ak tout done pèsonèl ki asosye avè l nenpòt ki lè. Pou fè demand sipresyon kont lan, kontakte ekip sipò nou an avèk nimewo telefòn ak non itilizatè kont ou :</p>
+    <div class="contact">
+      <p><strong>Imèl Sipò :</strong> <a href="mailto:itsleprince70@gmail.com">itsleprince70@gmail.com</a></p>
+      <p><strong>WhatsApp Sipò :</strong> +509 4098-7659</p>
+      <p>N ap trete demand ou an epi efase done kont lan nan yon delè maksimòm 7 jou ouvrab.</p>
+    </div>
+  </div>
+</body>
+</html>`);
+  });
+
+  // Return JSON 404 for unknown /api/* routes instead of falling through to SPA HTML
+  app.all('/api/*', (_req, res) => {
+    return res.status(404).json({ error: 'Pwen API sa a pa egziste.' });
+  });
+
+  // Serve favicon cleanly in both dev & prod
+  app.get('/favicon.ico', (_req, res) => {
+    const iconSvg = path.resolve(__dirname, 'public', 'icon.svg');
+    if (fs.existsSync(iconSvg)) {
+      res.setHeader('Content-Type', 'image/svg+xml');
+      return res.sendFile(iconSvg);
+    }
+    return res.status(204).end();
+  });
+
+  // Serve static public assets (including videos)
+  app.use('/videos', express.static(path.resolve(__dirname, 'public', 'videos')));
+  app.use(express.static(path.resolve(__dirname, 'public')));
+
   // Vite Integration (Dev Mode)
   if (process.env.NODE_ENV !== 'production') {
+    app.get('/manifest.webmanifest', (_req, res) => {
+      res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+      return res.json({
+        id: '/',
+        name: 'MASTER PLAY - Kèkè Challenge',
+        short_name: 'MASTER PLAY',
+        description: 'Platfòm ofisyèl MASTER PLAY ak Kèkè Challenge pou jwèt, konpetisyon, piblikasyon ak tranzaksyon NatCash an Ayiti.',
+        theme_color: '#080C16',
+        background_color: '#080C16',
+        display: 'standalone',
+        orientation: 'portrait',
+        start_url: '/',
+        scope: '/',
+        icons: [
+          { src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/pwa-maskable-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+      });
+    });
+
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: false,
+        allowedHosts: true,
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   } else {
     app.use(express.static(path.resolve(__dirname, 'dist')));
-    app.get('*', (req, res) => {
+    app.get('*', (_req, res) => {
       res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
     });
   }

@@ -59,3 +59,23 @@
 .glow-cyan {
   box-shadow: 0 0 25px rgba(6, 182, 212, 0.25);
 }
+
+@keyframes float-heart {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(0.8) rotate(0deg);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translateY(-120px) scale(1.2) rotate(15deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-240px) scale(1.4) rotate(-15deg);
+  }
+}
+
+.animate-float-heart {
+  animation: float-heart 2s ease-out forwards;
+}
+

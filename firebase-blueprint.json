@@ -1,0 +1,702 @@
+{
+  "entities": {
+    "UserPublic": {
+      "title": "UserPublic",
+      "description": "Public profile, progression, and social stats for a MASTER PLAY user keyed by permanent Firebase UID.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "masterPlayId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "fullName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "profilePhoto": {
+          "type": "string",
+          "maxLength": 2048
+        },
+        "level": {
+          "type": "number"
+        },
+        "points": {
+          "type": "number"
+        },
+        "stars": {
+          "type": "number"
+        },
+        "followersCount": {
+          "type": "number"
+        },
+        "followingCount": {
+          "type": "number"
+        },
+        "matchesWon": {
+          "type": "number"
+        },
+        "matchesPlayed": {
+          "type": "number"
+        },
+        "certificationStatus": {
+          "type": "string",
+          "enum": ["non_sètifye", "sètifye"]
+        },
+        "verified": {
+          "type": "boolean"
+        },
+        "isOnline": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "fullName", "level", "points", "createdAt", "updatedAt"]
+    },
+    "UserPrivate": {
+      "title": "UserPrivate",
+      "description": "Isolated PII, phone number, email, and financial balances for a MASTER PLAY user.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "masterPlayId": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "phoneNumber": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "balance": {
+          "type": "number"
+        },
+        "reservedBalance": {
+          "type": "number"
+        },
+        "isMonetized": {
+          "type": "boolean"
+        },
+        "totalEarnings": {
+          "type": "number"
+        },
+        "availableEarnings": {
+          "type": "number"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "balance", "updatedAt"]
+    },
+    "FollowEdge": {
+      "title": "FollowEdge",
+      "description": "Follower or following relationship edge between two Firebase UIDs.",
+      "type": "object",
+      "properties": {
+        "followerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "targetUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["followerUid", "targetUid", "createdAt"]
+    },
+    "UserGameProgress": {
+      "title": "UserGameProgress",
+      "description": "Per-game 7-level progression, high score, and points earned for a user.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "gameId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "currentLevel": {
+          "type": "number"
+        },
+        "highScore": {
+          "type": "number"
+        },
+        "totalPoints": {
+          "type": "number"
+        },
+        "completedLevelsCount": {
+          "type": "number"
+        },
+        "sessionPaid": {
+          "type": "boolean"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "gameId", "currentLevel", "highScore", "totalPoints", "updatedAt"]
+    },
+    "UserTransaction": {
+      "title": "UserTransaction",
+      "description": "Payment, NatCash deposit/withdrawal, game entry, or competition registration ledger entry.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "referenceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "type": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "amount": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["an_atant", "konfime", "refize"]
+        },
+        "proofImage": {
+          "type": "string",
+          "maxLength": 2048
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "uid", "referenceId", "type", "amount", "status", "createdAt", "updatedAt"]
+    },
+    "Post": {
+      "title": "Post",
+      "description": "User publication (text, image, or video) stored in Firestore with media URLs in Firebase Storage.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "authorPhoto": {
+          "type": "string",
+          "maxLength": 2048
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "mediaType": {
+          "type": "string",
+          "enum": ["text", "image", "video", "none"]
+        },
+        "mediaUrl": {
+          "type": "string",
+          "maxLength": 2048
+        },
+        "videoUrl": {
+          "type": "string",
+          "maxLength": 2048
+        },
+        "likesCount": {
+          "type": "number"
+        },
+        "commentsCount": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "authorUid", "authorName", "title", "mediaType", "likesCount", "commentsCount", "createdAt", "updatedAt"]
+    },
+    "PostLike": {
+      "title": "PostLike",
+      "description": "Like record on a publication.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "createdAt"]
+    },
+    "PostComment": {
+      "title": "PostComment",
+      "description": "Comment on a publication.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "authorUid", "authorName", "text", "createdAt"]
+    },
+    "GameScore": {
+      "title": "GameScore",
+      "description": "Score and leaderboard entry for a game played by a user.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "gameId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "competitionId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "score": {
+          "type": "number"
+        },
+        "pointsEarned": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "uid", "userName", "gameId", "score", "createdAt"]
+    },
+    "GameCatalog": {
+      "title": "GameCatalog",
+      "description": "MASTER PLAY game metadata and pricing.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "entryFee": {
+          "type": "number"
+        },
+        "isPaid": {
+          "type": "boolean"
+        },
+        "isActive": {
+          "type": "boolean"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "title", "entryFee", "isActive", "updatedAt"]
+    },
+    "Competition": {
+      "title": "Competition",
+      "description": "MASTER PLAY competition metadata, prizes, schedule, and winner summary.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "status": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "entryFee": {
+          "type": "number"
+        },
+        "currentDay": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "prizesFirst": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "prizesSecond": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "prizesThird": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "championName": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "name", "status", "entryFee", "updatedAt"]
+    },
+    "CompetitionParticipant": {
+      "title": "CompetitionParticipant",
+      "description": "Participant registration and score in a competition.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "fullName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "totalScore": {
+          "type": "number"
+        },
+        "matchesWon": {
+          "type": "number"
+        },
+        "votesCount": {
+          "type": "number"
+        },
+        "joinedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "fullName", "totalScore", "joinedAt"]
+    },
+    "CompetitionMatch": {
+      "title": "CompetitionMatch",
+      "description": "VS match inside a MASTER PLAY competition.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "competitionId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "round": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "player1Uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "player2Uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "score1": {
+          "type": "number"
+        },
+        "score2": {
+          "type": "number"
+        },
+        "winnerId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "status": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "competitionId", "round", "player1Uid", "player2Uid", "status", "updatedAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "User notification record.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "read": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "uid", "title", "message", "read", "createdAt"]
+    },
+    "AdminAuditLog": {
+      "title": "AdminAuditLog",
+      "description": "Protected admin audit and snapshot metadata.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "details": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "actor": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "action", "details", "actor", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserPublic" },
+      "description": "Public user profile, level, points, rank stats, and certification state keyed by Firebase UID."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivate" },
+      "description": "Isolated PII (phoneNumber, email) and balance accessible only to owner or admin."
+    },
+    "/users/{userId}/followers/{followerId}": {
+      "schema": { "$ref": "#/entities/FollowEdge" },
+      "description": "Followers subcollection for scalable follow graph."
+    },
+    "/users/{userId}/following/{targetId}": {
+      "schema": { "$ref": "#/entities/FollowEdge" },
+      "description": "Following subcollection for scalable follow graph."
+    },
+    "/users/{userId}/gameProgress/{gameId}": {
+      "schema": { "$ref": "#/entities/UserGameProgress" },
+      "description": "Per-user 7-level game progress and high score history."
+    },
+    "/users/{userId}/transactions/{txId}": {
+      "schema": { "$ref": "#/entities/UserTransaction" },
+      "description": "User payment and NatCash transaction history."
+    },
+    "/posts/{postId}": {
+      "schema": { "$ref": "#/entities/Post" },
+      "description": "User publications with Firebase Storage media URLs."
+    },
+    "/posts/{postId}/likes/{userId}": {
+      "schema": { "$ref": "#/entities/PostLike" },
+      "description": "Likes subcollection per post."
+    },
+    "/posts/{postId}/comments/{commentId}": {
+      "schema": { "$ref": "#/entities/PostComment" },
+      "description": "Comments subcollection per post."
+    },
+    "/scores/{scoreId}": {
+      "schema": { "$ref": "#/entities/GameScore" },
+      "description": "Game scores and leaderboard records."
+    },
+    "/games/{gameId}": {
+      "schema": { "$ref": "#/entities/GameCatalog" },
+      "description": "Game catalog and pricing metadata."
+    },
+    "/competitions/{competitionId}": {
+      "schema": { "$ref": "#/entities/Competition" },
+      "description": "Competition definitions, prizes, schedule, and winners."
+    },
+    "/competitions/{competitionId}/participants/{userId}": {
+      "schema": { "$ref": "#/entities/CompetitionParticipant" },
+      "description": "Participants registered in a competition."
+    },
+    "/competitions/{competitionId}/matches/{matchId}": {
+      "schema": { "$ref": "#/entities/CompetitionMatch" },
+      "description": "VS matches and verified results inside a competition."
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "User notifications."
+    },
+    "/adminAudit/{logId}": {
+      "schema": { "$ref": "#/entities/AdminAuditLog" },
+      "description": "Admin-only audit and migration logs."
+    }
+  }
+}

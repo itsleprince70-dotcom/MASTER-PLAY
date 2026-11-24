@@ -1,5 +1,6 @@
 export interface User {
   id: string;
+  firebaseUid?: string;
   fullName: string;
   phoneNumber: string;
   profilePhoto: string;
@@ -21,6 +22,87 @@ export interface User {
   levelHistory?: Array<{ level: number; date: string; reason: string }>;
   createdAt: string;
   isGoogleUser?: boolean;
+  isVerifiedInDatabase?: boolean;
+  verifiedInDatabaseAt?: string;
+  isVerified?: boolean;
+  username?: string;
+  bio?: string;
+  email?: string;
+  googleId?: string;
+  followingCount?: number;
+  favoritePostIds?: string[];
+  lastPostDate?: string;
+  // Monetization fields
+  isMonetized?: boolean;
+  monetizationStatus?: 'none' | 'an_atant' | 'aksepte' | 'refize' | 'active' | 'pending' | 'rejected' | 'suspended';
+  monetizationRequestedAt?: string;
+  monetizationApprovedAt?: string;
+  totalEarnings?: number;
+  availableEarnings?: number;
+  paidEarnings?: number;
+  monetizedLikesCount?: number;
+  followerMilestonePaid?: boolean;
+  masterPlayId?: string;
+  firstName?: string;
+  lastName?: string;
+  role?: 'USER' | 'ADMIN';
+  isAdmin?: boolean;
+  adminToken?: string;
+  certificationStatus?: 'non_sètifye' | 'sètifye';
+  verified?: boolean;
+  certifiedAt?: string;
+  certifiedBy?: string;
+}
+
+export interface MonetizationConfig {
+  isEnabled: boolean;
+  activationFee: number;
+  minFollowersRequired: number;
+  earningsPer1000Likes: number;
+  milestoneFollowersReward: number;
+  updatedAt?: string;
+}
+
+export interface AlgorithmAnomaly {
+  id: string;
+  type: 'duplicate_account' | 'suspicious_votes' | 'like_spam' | 'financial_discrepancy' | 'rapid_action';
+  severity: 'ba' | 'mwayen' | 'wo';
+  title: string;
+  description: string;
+  targetId?: string;
+  targetName?: string;
+  createdAt: string;
+  status: 'aktif' | 'rezoud' | 'inore';
+}
+
+export interface AlgorithmApproval {
+  id: string;
+  type: 'bloke_kont' | 'efase_piblikasyon' | 'peyman_monetizasyon' | 'chanje_balans';
+  targetId: string;
+  targetName: string;
+  requestedAction: string;
+  amount?: number;
+  reason: string;
+  status: 'an_atant' | 'apwouve' | 'refize';
+  createdAt: string;
+}
+
+export interface AlgorithmIntelligenceData {
+  stats: {
+    totalUsers: number;
+    activeUsers: number;
+    totalPosts: number;
+    totalVideos: number;
+    totalVotes: number;
+    totalTransactions: number;
+    monetizedUsersCount: number;
+    totalMonetizationEarnings: number;
+    integrityScore: number;
+    anomaliesCount: number;
+  };
+  anomalies: AlgorithmAnomaly[];
+  recommendations: string[];
+  pendingApprovals: AlgorithmApproval[];
 }
 
 export interface CompetitionMatch {
@@ -41,6 +123,7 @@ export interface CompetitionMatch {
     votesCount?: number;
     giftsCount?: number;
     giftsValue?: number;
+    verified?: boolean;
   };
   player2: {
     userId: string;
@@ -55,6 +138,7 @@ export interface CompetitionMatch {
     votesCount?: number;
     giftsCount?: number;
     giftsValue?: number;
+    verified?: boolean;
   };
   gameId: string;
   gameTitle: string;
@@ -103,6 +187,7 @@ export interface CompetitionParticipantScore {
   eliminated?: boolean;
   registrationDate: string;
   rank?: number;
+  verified?: boolean;
 }
 
 export interface Competition {
@@ -157,6 +242,17 @@ export interface Competition {
     first?: { userId: string; name: string; prize: string };
     second?: { userId: string; name: string; prize: string };
     third?: { userId: string; name: string; prize: string };
+  };
+  prizesPaid?: {
+    first?: boolean;
+    second?: boolean;
+    third?: boolean;
+    firstPaidAt?: string;
+    secondPaidAt?: string;
+    thirdPaidAt?: string;
+    firstRecipientId?: string;
+    secondRecipientId?: string;
+    thirdRecipientId?: string;
   };
   revenue?: {
     registrations: number;
@@ -290,6 +386,7 @@ export interface PostComment {
   userId: string;
   userName: string;
   userPhoto?: string;
+  userVerified?: boolean;
   text: string;
   createdAt: string;
 }
@@ -302,12 +399,20 @@ export interface Post {
   mediaUrl?: string;
   mediaUrls?: string[];
   videoUrl?: string;
+  videoMasterUrl?: string;
   tiktokUrl?: string;
   author?: string;
+  authorId?: string;
+  authorName?: string;
+  authorPhoto?: string;
+  authorVerified?: boolean;
   likes: string[];
+  favorites?: string[];
   comments: PostComment[];
   createdAt: string;
   pinned?: boolean;
+  viewsCount?: number;
+  sharesCount?: number;
 }
 
 export interface GameScore {
@@ -394,3 +499,90 @@ export interface AuditLog {
   details: string;
   actor: string;
 }
+
+export interface DailyScoreRecord {
+  id: string;
+  competitionId: string;
+  competitionName?: string;
+  userId: string;
+  userName?: string;
+  userPhone?: string;
+  gameId: string;
+  gameTitle?: string;
+  level: number;
+  dayKey: string;
+  score: number;
+  createdAt: string;
+}
+
+export interface GlobalMemoryEvent {
+  eventId: string;
+  userId: string;
+  actionType: string;
+  dateTime: string;
+  serverTimestamp: number;
+  pageOrFeature: string;
+  result: 'success' | 'error' | 'pending';
+  data?: Record<string, any>;
+  clientMutationId?: string;
+}
+
+export interface BackupSnapshotMeta {
+  version: number;
+  createdAt: string;
+  fileName: string;
+  usersCount: number;
+  postsCount: number;
+  checksum: string;
+}
+
+export interface GlobalMemoryOverview {
+  stats: {
+    usersCount: number;
+    publicationsCount: number;
+    videosCount: number;
+    competitionsCount: number;
+    scoresCount: number;
+    transactionsCount: number;
+    eventsCount: number;
+    needsVerificationCount: number;
+    syncErrorsCount: number;
+  };
+  backupStatus: {
+    schemaVersion: number;
+    dataVersion: number;
+    lastUpdatedAt: string;
+    lastBackupAt?: string;
+    lastBackupVersion?: number;
+    snapshots: BackupSnapshotMeta[];
+  };
+  recentEvents: GlobalMemoryEvent[];
+  syncErrors: Array<{
+    id: string;
+    userId?: string;
+    actionType: string;
+    error: string;
+    timestamp: string;
+  }>;
+  needsVerificationUsers: Array<{
+    id: string;
+    fullName: string;
+    phoneNumber: string;
+    masterPlayId?: string;
+    createdAt: string;
+  }>;
+}
+
+export interface SyncQueueItem {
+  clientMutationId: string;
+  userId: string;
+  actionType: string;
+  pageOrFeature: string;
+  endpoint: string;
+  method: 'POST' | 'PUT';
+  payload: Record<string, any>;
+  createdAt: string;
+  retries: number;
+}
+
+

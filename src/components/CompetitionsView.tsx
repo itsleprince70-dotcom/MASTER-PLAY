@@ -7,6 +7,7 @@ import {
   Check, Lock, Star, ChevronDown, Award, Heart, Gift, ThumbsUp, Send,
   Zap, Info, Coins, ShieldAlert, ArrowLeft, Loader2
 } from 'lucide-react';
+import { notify } from './Toast';
 
 import { BalonChallenge } from './games/BalonChallenge';
 import { JeuDeMots } from './games/JeuDeMots';
@@ -35,6 +36,7 @@ import { BalloonPopper } from './games/BalloonPopper';
 import { SnakeRush } from './games/SnakeRush';
 import { CoinJumper } from './games/CoinJumper';
 import { SubscribeButton } from './SubscribeButton';
+import { VerifiedBadge } from './VerifiedBadge';
 
 interface CompetitionsViewProps {
   competitions: Competition[];
@@ -46,6 +48,7 @@ interface CompetitionsViewProps {
   onSelectGame?: (game: Game) => void;
   selectedCompId?: string | null;
   onUpdateUser?: (updatedUser: User) => void;
+  onDataRefresh?: () => void;
 }
 
 export const CompetitionsView: React.FC<CompetitionsViewProps> = ({
@@ -58,6 +61,7 @@ export const CompetitionsView: React.FC<CompetitionsViewProps> = ({
   onSelectGame,
   selectedCompId,
   onUpdateUser,
+  onDataRefresh,
 }) => {
   // Main sub-tab switcher: Now includes 'jwet_seleksyone'
   const [activeSubTab, setActiveSubTab] = useState<'tounwa' | 'jwet_seleksyone' | 'top8' | 'match_vot' | 'kado' | 'rezilta'>('tounwa');
@@ -112,7 +116,27 @@ export const CompetitionsView: React.FC<CompetitionsViewProps> = ({
   const [recordingLevelScore, setRecordingLevelScore] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [playedLevelsToday, setPlayedLevelsToday] = useState<number[]>([]);
+  const [allPlayedGamesToday, setAllPlayedGamesToday] = useState<string[]>([]);
   const [levelSaveMessage, setLevelSaveMessage] = useState<string | null>(null);
+
+  // Fetch all played games today for current user in this competition
+  const refreshCompetitionPlayedToday = () => {
+    if (selectedComp?.id && currentUser?.id) {
+      api.getCompetitionPlayedLevels(selectedComp.id, currentUser.id, 'all')
+        .then(res => {
+          if (res.success && res.playedGameIds) {
+            setAllPlayedGamesToday(res.playedGameIds);
+          }
+        })
+        .catch(() => {});
+    } else {
+      setAllPlayedGamesToday([]);
+    }
+  };
+
+  useEffect(() => {
+    refreshCompetitionPlayedToday();
+  }, [selectedComp?.id, currentUser?.id]);
 
   // Fetch played levels for current user and selected game today
   useEffect(() => {
@@ -121,6 +145,9 @@ export const CompetitionsView: React.FC<CompetitionsViewProps> = ({
         .then(res => {
           if (res.success && res.playedLevels) {
             setPlayedLevelsToday(res.playedLevels);
+          }
+          if (res.success && res.playedGameIds) {
+            setAllPlayedGamesToday(res.playedGameIds);
           }
         })
         .catch(() => {});
@@ -156,10 +183,26 @@ export const CompetitionsView: React.FC<CompetitionsViewProps> = ({
 
   const availableBalance = currentUser ? currentUser.balance - (currentUser.reservedBalance || 0) : 0;
 
-  // Handle Competition Registration
+  // Handle Competition Registration (Requirement 5, 6, 7, 10: Anti-double registration & seamless state sync)
   const handleRegister = async (comp: Competition) => {
     if (!currentUser) {
       onOpenAuth();
+      return;
+    }
+
+    if (registering) return; // Prevent double click
+
+    // Client-side quick check: already registered
+    const isAlreadyRegistered =
+      Boolean(comp.registeredUserIds && comp.registeredUserIds.includes(currentUser.id)) ||
+      Boolean(comp.scores && comp.scores.some(s => s.userId === currentUser.id));
+
+    if (isAlreadyRegistered) {
+      notify(`Ou deja enskri nan ${comp.name}.`, 'info');
+      setFeedbackMsg({
+        type: 'error',
+        text: 'Ou deja enskri nan konpetisyon sa a.'
+      });
       return;
     }
 
@@ -181,22 +224,36 @@ export const CompetitionsView: React.FC<CompetitionsViewProps> = ({
           type: 'success',
           text: res.message || `Ou enskri avèk siksè nan ${comp.name} !`
         });
+        notify(`Felisitasyon ! Ou enskri avèk siksè nan ${comp.name}.`, 'success');
         onRegistrationSuccess(res.competition, res.user);
         setSelectedComp(res.competition);
         if (detailModalComp?.id === comp.id) {
           setDetailModalComp(res.competition);
+        }
+      } else if (res.alreadyRegistered) {
+        // If server says user was already registered
+        notify('Ou deja enskri nan konpetisyon sa a.', 'info');
+        setFeedbackMsg({
+          type: 'error',
+          text: 'Ou deja enskri nan konpetisyon sa a.'
+        });
+        if (res.competition && res.user) {
+          onRegistrationSuccess(res.competition, res.user);
+          setSelectedComp(res.competition);
         }
       } else {
         setFeedbackMsg({
           type: 'error',
           text: res.error || 'Erè pandan enskripsyon an.'
         });
+        notify(res.error || 'Erè pandan enskripsyon an.', 'error');
       }
     } catch (err: any) {
       setFeedbackMsg({
         type: 'error',
         text: err.message || 'Erè rezo pandan enskripsyon an.'
       });
+      notify(err.message || 'Erè rezo pandan enskripsyon an.', 'error');
     } finally {
       setRegistering(false);
     }
@@ -325,21 +382,21 @@ export const CompetitionsView: React.FC<CompetitionsViewProps> = ({
     }
   };
 
-  // Handle Level Completion / Game Over in Competition Mode (Requirement 3A: Score Staging)
+  // Handle Level Completion / Game Over in Competition Mode
   const handleCompGameOver = (baseScore: number, _prize?: number, levelReached?: number) => {
     if (!competitionPlayingGame || !currentUser) return;
     const lvl = levelReached || 1;
 
-    // Check if this level was already recorded today
-    if (playedLevelsToday.includes(lvl)) {
-      alert('Ou deja anrejistre pwen ou pou nivo sa a. Ou pa kapab rejwe li pandan jounen sa a.');
+    // Check if this game was already recorded today
+    if (allPlayedGamesToday.includes(competitionPlayingGame.id)) {
+      notify('Ou deja anrejistre pwen ou pou jwèt sa a nan konpetisyon an jodi a.', 'info');
       return;
     }
 
     const mult = compDifficulty === 'fasil' ? 1 : compDifficulty === 'mwayen' ? 1.5 : 2;
     const finalScore = Math.max(10, Math.round(baseScore * mult));
 
-    // Stage score for player's explicit confirmation via "Anrejistre pwen yo"
+    // Stage score for player's explicit confirmation via "ANREJISTRE PWEN MWEN"
     setPendingLevelScore({
       score: finalScore,
       rawScore: baseScore,
@@ -350,54 +407,84 @@ export const CompetitionsView: React.FC<CompetitionsViewProps> = ({
     setLevelSaveMessage(null);
   };
 
-  // Explicit Save Points Action (Requirement 3A & 3B)
-  const handleSavePendingScore = async (onDone?: () => void) => {
-    if (!pendingLevelScore || !currentUser || !selectedComp) return;
+  // Explicit Save Points Action: Points are recorded directly into the competition leaderboard when button is pressed
+  const handleSavePendingScore = async (
+    overrideScore?: { score: number; level: number; gameId: string; gameTitle: string },
+    onDone?: () => void
+  ) => {
+    if (!currentUser || !selectedComp) return;
     if (recordingLevelScore) return; // Prevent double click
+
+    const activeGame = competitionPlayingGame;
+    const targetScore = overrideScore || pendingLevelScore || (activeGame ? {
+      score: Math.max(10, Math.round(50 * (compDifficulty === 'fasil' ? 1 : compDifficulty === 'mwayen' ? 1.5 : 2))),
+      rawScore: 50,
+      level: 1,
+      gameId: activeGame.id,
+      gameTitle: activeGame.title
+    } : null);
+
+    if (!targetScore) return;
+
+    if (allPlayedGamesToday.includes(targetScore.gameId)) {
+      notify('Ou deja anrejistre pwen ou pou jwèt sa a nan konpetisyon an jodi a.', 'info');
+      return;
+    }
+
     setRecordingLevelScore(true);
 
     try {
       const res = await api.recordCompetitionLevelScore({
         competitionId: selectedComp.id,
         userId: currentUser.id,
-        gameId: pendingLevelScore.gameId,
-        level: pendingLevelScore.level,
-        score: pendingLevelScore.score
+        gameId: targetScore.gameId,
+        level: targetScore.level,
+        score: targetScore.score
       });
 
       if (res.success && res.competition) {
+        // 1. Immediately update the competition state and its leaderboard
         setSelectedComp(res.competition);
         if (res.playedLevelsToday) {
           setPlayedLevelsToday(res.playedLevelsToday);
         } else {
-          setPlayedLevelsToday(prev => [...prev, pendingLevelScore.level]);
+          setPlayedLevelsToday(prev => [...prev, targetScore.level]);
         }
 
-        // Show official Haitian Creole success confirmation
-        setLevelSaveMessage('Pwen ou yo anrejistre avèk siksè !');
+        // 2. Mark this game as played/recorded today in this competition
+        setAllPlayedGamesToday(prev => Array.from(new Set([...prev, targetScore.gameId])));
+        refreshCompetitionPlayedToday();
 
-        // Sync general game progress in background
+        // 3. Official Haitian Creole confirmation message
+        setLevelSaveMessage('Pwen ou yo anrejistre avèk siksè nan tablo klasman konpetisyon an.');
+        notify('Pwen ou yo anrejistre avèk siksè nan tablo klasman konpetisyon an.', 'success');
+
+        // 4. Refresh global app state so all views/tabs get the updated leaderboard
+        if (onDataRefresh) {
+          onDataRefresh();
+        }
+
+        // 5. Sync general progress in background
         api.saveGameProgress({
-          gameId: pendingLevelScore.gameId,
+          gameId: targetScore.gameId,
           userId: currentUser.id,
-          level: pendingLevelScore.level,
+          level: targetScore.level,
           won: true,
-          score: pendingLevelScore.score,
-          pointsEarned: pendingLevelScore.score,
+          score: targetScore.score,
+          pointsEarned: targetScore.score,
           competitionId: selectedComp.id
         }).catch(() => {});
 
-        setTimeout(() => {
-          setLevelSaveMessage(null);
-          setPendingLevelScore(null);
-          setShowExitConfirm(false);
-          if (onDone) onDone();
-        }, 1200);
+        if (onDone) {
+          setTimeout(() => {
+            onDone();
+          }, 1500);
+        }
       } else {
-        alert(res.error || 'Erè nan anrejistreman pwen yo.');
+        notify(res.error || 'Erè nan anrejistreman pwen yo.', 'error');
       }
     } catch (err: any) {
-      alert(err.message || 'Erè pandan anrejistreman pwen yo.');
+      notify(err.message || 'Erè pandan anrejistreman pwen yo.', 'error');
     } finally {
       setRecordingLevelScore(false);
     }
@@ -823,12 +910,12 @@ export const CompetitionsView: React.FC<CompetitionsViewProps> = ({
                 )}
                 <div className="flex flex-col sm:flex-row gap-2 pt-2">
                   <button
-                    onClick={() => handleSavePendingScore(() => setCompetitionPlayingGame(null))}
+                    onClick={() => handleSavePendingScore(undefined, () => setCompetitionPlayingGame(null))}
                     disabled={recordingLevelScore}
                     className="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider transition shadow-lg flex items-center justify-center gap-1.5 disabled:opacity-50"
                   >
                     {recordingLevelScore ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                    <span>Anrejistre pwen yo</span>
+                    <span>ANREJISTRE PWEN MWEN</span>
                   </button>
                   <button
                     onClick={() => {
@@ -878,16 +965,43 @@ export const CompetitionsView: React.FC<CompetitionsViewProps> = ({
                 </div>
 
                 {levelSaveMessage ? (
-                  <div className="p-3 bg-emerald-500/20 border border-emerald-500/40 rounded-xl text-emerald-300 text-xs font-bold flex items-center justify-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>{levelSaveMessage}</span>
+                  <div className="space-y-3 pt-2">
+                    <div className="p-3 bg-emerald-500/20 border border-emerald-500/40 rounded-xl text-emerald-300 text-xs font-bold flex items-center justify-center gap-2">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                      <span>{levelSaveMessage}</span>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setLevelSaveMessage(null);
+                          setPendingLevelScore(null);
+                          setCompetitionPlayingGame(null);
+                          setActiveSubTab('top8');
+                        }}
+                        className="flex-1 py-3 px-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5 active:scale-95"
+                      >
+                        <Crown className="w-4 h-4" />
+                        <span>Gade Klasman Mwen</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setLevelSaveMessage(null);
+                          setPendingLevelScore(null);
+                          setCompetitionPlayingGame(null);
+                        }}
+                        className="py-3 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-xs uppercase transition-all"
+                      >
+                        Fèmen
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-2 pt-1">
                     <button
                       onClick={() => handleSavePendingScore()}
                       disabled={recordingLevelScore}
-                      className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-emerald-950/50 flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50"
+                      className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-600 hover:from-emerald-400 hover:to-green-400 text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-emerald-950/50 flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50"
                     >
                       {recordingLevelScore ? (
                         <>
@@ -896,8 +1010,8 @@ export const CompetitionsView: React.FC<CompetitionsViewProps> = ({
                         </>
                       ) : (
                         <>
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>Anrejistre pwen yo</span>
+                          <CheckCircle2 className="w-4 h-4 text-slate-950 stroke-[3]" />
+                          <span>ANREJISTRE PWEN MWEN</span>
                         </>
                       )}
                     </button>
@@ -905,7 +1019,7 @@ export const CompetitionsView: React.FC<CompetitionsViewProps> = ({
                       onClick={() => setShowExitConfirm(true)}
                       className="text-xs text-slate-400 hover:text-white transition-colors py-1 block mx-auto"
                     >
-                      Kite jwèt la...
+                      Kite jwèt la san anrejistre...
                     </button>
                   </div>
                 )}
@@ -971,6 +1085,80 @@ export const CompetitionsView: React.FC<CompetitionsViewProps> = ({
                   >
                     🔴 Difisil (x2.0)
                   </button>
+                </div>
+              </div>
+
+              {/* REKÈT #1 & #2: BOUTON ANREJISTRE PWEN TOUJOU DISPONIB PANDAN JWÈT LA */}
+              <div className="sticky top-16 z-30 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-emerald-950/95 via-[#0F172A]/95 to-amber-950/95 border-2 border-emerald-500/60 backdrop-blur-md shadow-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center shrink-0">
+                    <Trophy className="w-5 h-5 text-amber-400" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-white flex items-center gap-1.5">
+                      <span>{competitionPlayingGame.title}</span>
+                      <span className="text-[10px] text-amber-400 uppercase font-bold">• {selectedComp.name}</span>
+                      <span className="text-[9px] px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-black">
+                        ✓ GRATIS (0 HT)
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-300">
+                      {levelSaveMessage ? (
+                        <span className="text-emerald-300 font-bold">{levelSaveMessage}</span>
+                      ) : pendingLevelScore ? (
+                        <span>Nivo {pendingLevelScore.level} fini ! Pwen aktyèl: <strong className="text-amber-400">+{pendingLevelScore.score} pts</strong> • Peze bouton an pou voye yo nan tablo klasman an !</span>
+                      ) : (
+                        <span>Jwe jwèt la epi peze bouton vèt la pou anrejistre pwen ou dirèkteman nan tablo klasman an.</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {(() => {
+                    const isAlreadySaved = allPlayedGamesToday.includes(competitionPlayingGame.id);
+
+                    if (isAlreadySaved) {
+                      return (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                            <span>Pwen anrejistre nan klasman ✓</span>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setCompetitionPlayingGame(null);
+                              setActiveSubTab('top8');
+                            }}
+                            className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black uppercase transition-all shadow-md flex items-center gap-1.5 active:scale-95"
+                          >
+                            <Crown className="w-4 h-4" />
+                            <span>Gade Klasman</span>
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <button
+                        onClick={() => handleSavePendingScore()}
+                        disabled={recordingLevelScore}
+                        className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-600 hover:from-emerald-400 hover:to-green-400 text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-emerald-950/60 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        {recordingLevelScore ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>N ap anrejistre nan klasman...</span>
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-4 h-4 text-slate-950 stroke-[3]" />
+                            <span>ANREJISTRE PWEN MWEN</span>
+                          </>
+                        )}
+                      </button>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -1243,15 +1431,38 @@ export const CompetitionsView: React.FC<CompetitionsViewProps> = ({
                               </span>
                             </div>
 
-                            {/* PLAY BUTTON (JWÈ) */}
+                            {/* PLAY BUTTON (JWÈ) / BLOCKED STATE */}
                             {isRegistered ? (
-                              <button
-                                onClick={() => setCompetitionPlayingGame(game)}
-                                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2 active:scale-98"
-                              >
-                                <Play className="w-4 h-4 fill-slate-950" />
-                                <span>JWÈ KOUNYE A (GRATIS)</span>
-                              </button>
+                              (() => {
+                                const isGameAlreadyPlayedToday = allPlayedGamesToday.includes(game.id);
+
+                                if (isGameAlreadyPlayedToday) {
+                                  return (
+                                    <div className="space-y-1.5">
+                                      <button
+                                        disabled
+                                        className="w-full py-2.5 rounded-xl bg-slate-800/90 text-slate-400 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-not-allowed border border-slate-700/80"
+                                      >
+                                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                        <span>PWEN ANREJISTRE (BLOKE)</span>
+                                      </button>
+                                      <p className="text-[10px] text-center text-slate-400 leading-tight">
+                                        Ou deja anrejistre pwen ou pou jwèt sa a nan konpetisyon an jodi a.
+                                      </p>
+                                    </div>
+                                  );
+                                }
+
+                                return (
+                                  <button
+                                    onClick={() => setCompetitionPlayingGame(game)}
+                                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2 active:scale-98"
+                                  >
+                                    <Play className="w-4 h-4 fill-slate-950" />
+                                    <span>JWÈ KOUNYE A (GRATIS)</span>
+                                  </button>
+                                );
+                              })()
                             ) : (
                               <button
                                 onClick={() => handleRegister(selectedComp)}
@@ -1336,6 +1547,7 @@ export const CompetitionsView: React.FC<CompetitionsViewProps> = ({
                               <span className="font-bold text-white block">
                                 {p.fullName} {isUser && '(Ou menm)'}
                               </span>
+                              <VerifiedBadge verified={p.verified} size="xs" />
                               {!isUser && (
                                 <SubscribeButton
                                   targetUserId={p.userId}
@@ -1470,6 +1682,7 @@ export const CompetitionsView: React.FC<CompetitionsViewProps> = ({
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
                               <h4 className="text-sm font-black text-white truncate">{match.player1.fullName}</h4>
+                              <VerifiedBadge verified={match.player1.verified} size="xs" />
                               <span className="text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.2 rounded font-black">
                                 N{match.player1.level || 3}
                               </span>
@@ -1556,6 +1769,7 @@ export const CompetitionsView: React.FC<CompetitionsViewProps> = ({
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
                               <h4 className="text-sm font-black text-white truncate">{match.player2.fullName}</h4>
+                              <VerifiedBadge verified={match.player2.verified} size="xs" />
                               <span className="text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.2 rounded font-black">
                                 N{match.player2.level || 2}
                               </span>

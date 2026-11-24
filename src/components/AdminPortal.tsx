@@ -1,25 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
-import { User, Competition, Transaction, Post, Game, AuditLog, CompetitionMatch, GiftItem, BalonAdminStats, BalonConfig, AvionCrashConfig, AvionCrashRound } from '../types';
+import { User, Competition, Transaction, Post, Game, AuditLog, CompetitionMatch, GiftItem, BalonAdminStats, BalonConfig, AvionCrashConfig, AvionCrashRound, DailyScoreRecord } from '../types';
 import {
   Shield, KeyRound, Users, Trophy, Newspaper, Gamepad2, ArrowDownUp, Bell,
   Settings, Check, X, AlertCircle, Search, RefreshCw, Plus, Trash2, Edit3,
   ExternalLink, Calendar, Flame, Image as ImageIcon, Video as VideoIcon,
   FileText, ArrowRight, CheckCircle2, ChevronRight, Crown, Sparkles, Filter, Lock,
   Gift, ThumbsUp, DollarSign, Clock, Coins, Play, Pause, XCircle, Heart, Target,
-  Plane
+  Plane, Download, Save, Award, Medal
 } from 'lucide-react';
+import { notify } from './Toast';
+import { VerifiedBadge } from './VerifiedBadge';
+import { useFirebase } from '../contexts/FirebaseContext';
+import { signInWithFirebaseGoogle, syncAdminMigrationToFirestore } from '../services/firebaseSync';
+import firebaseConfig from '../../firebase-applet-config.json';
 
 interface AdminPortalProps {
+  currentUser: User | null;
   onClose: () => void;
   onDataChanged: () => void;
 }
 
-export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged }) => {
+export const AdminPortal: React.FC<AdminPortalProps> = ({ currentUser, onClose, onDataChanged }) => {
   const [authorized, setAuthorized] = useState(false);
-  const [adminPinInput, setAdminPinInput] = useState('');
-  const [pinError, setPinError] = useState('');
-  const [loadingPin, setLoadingPin] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
 
   // Admin Data State
   const [overview, setOverview] = useState<{
@@ -29,12 +33,56 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
     competitions: Competition[];
     posts: Post[];
     games: Game[];
+    dailyLevelRecords?: DailyScoreRecord[];
     auditLogs: AuditLog[];
   } | null>(null);
 
+  const [scoreRecordsList, setScoreRecordsList] = useState<DailyScoreRecord[]>([]);
+  const [scoreFilterComp, setScoreFilterComp] = useState<string>('all');
+  const [scoreFilterGame, setScoreFilterGame] = useState<string>('all');
+  const [scoreSearchUser, setScoreSearchUser] = useState<string>('');
+
+  const [adminPinInput, setAdminPinInput] = useState('');
+  const [adminPinError, setAdminPinError] = useState('');
+  const [verifyingPin, setVerifyingPin] = useState(false);
+
+  const [certFilter, setCertFilter] = useState<'non_sètifye' | 'sètifye' | 'tout'>('non_sètifye');
+  const [certSearchQuery, setCertSearchQuery] = useState('');
+  const [certifyingUserIds, setCertifyingUserIds] = useState<Record<string, boolean>>({});
+
+  const { firebaseUser } = useFirebase();
+  const [cloudSyncing, setCloudSyncing] = useState(false);
+  const [cloudSyncSummary, setCloudSyncSummary] = useState<string | null>(null);
+  const [memoryOverview, setMemoryOverview] = useState<any>(null);
+  const [creatingBackup, setCreatingBackup] = useState(false);
+  const [restoreConfirmFile, setRestoreConfirmFile] = useState<string | null>(null);
+  const [restoringBackup, setRestoringBackup] = useState(false);
+
   const [activeSection, setActiveSection] = useState<
-    'overview' | 'avion_crash_admin' | 'balon_admin' | 'tranzaksyon' | 'konpetisyon' | 'match_vot' | 'boutik_kado' | 'finans_konpetisyon' | 'piblikasyon' | 'itilizate' | 'jwet' | 'notifikasyon' | 'anviwonman'
+    'overview' | 'avion_crash_admin' | 'balon_admin' | 'monetizasyon' | 'algorithm_intelligence' | 'tranzaksyon' | 'konpetisyon' | 'match_vot' | 'boutik_kado' | 'finans_konpetisyon' | 'piblikasyon' | 'itilizate' | 'setifikasyon' | 'memwa_database' | 'jwet' | 'notifikasyon' | 'anviwonman'
   >('overview');
+
+  // --- MONETIZATION ADMIN STATE ---
+  const [monetizationData, setMonetizationData] = useState<any>(null);
+  const [loadingMonetization, setLoadingMonetization] = useState(false);
+  const [monetizationActivationFeeInput, setMonetizationActivationFeeInput] = useState('250');
+  const [monetization1kLikesInput, setMonetization1kLikesInput] = useState('500');
+  const [monetizationMilestoneInput, setMonetizationMilestoneInput] = useState('1000');
+  const [monetizationMinFollowersInput, setMonetizationMinFollowersInput] = useState('1000');
+  const [savingMonetizationConfig, setSavingMonetizationConfig] = useState(false);
+  const [monetizationMsg, setMonetizationMsg] = useState('');
+  const [payoutModalCreator, setPayoutModalCreator] = useState<any>(null);
+  const [payoutAmountInput, setPayoutAmountInput] = useState('');
+  const [payoutPinInput, setPayoutPinInput] = useState('');
+  const [payoutLoading, setPayoutLoading] = useState(false);
+
+  // --- ALGORITHM INTELLIGENCE STATE ---
+  const [algorithmData, setAlgorithmData] = useState<any>(null);
+  const [loadingAlgorithm, setLoadingAlgorithm] = useState(false);
+  const [algorithmMsg, setAlgorithmMsg] = useState('');
+  const [cleaningFakeAccounts, setCleaningFakeAccounts] = useState(false);
+  const [cleanFakeAccountsPin, setCleanFakeAccountsPin] = useState('');
+  const [showCleanModal, setShowCleanModal] = useState(false);
 
   const [loadingData, setLoadingData] = useState(false);
 
@@ -117,8 +165,23 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
   const [newCompStatus, setNewCompStatus] = useState<string>('Enskripsyon ouvè');
   const [newCompQualificationCount, setNewCompQualificationCount] = useState<number>(8);
   const [newCompVotingEnabled, setNewCompVotingEnabled] = useState<boolean>(true);
-  const [newCompVotePrice, setNewCompVotePrice] = useState<number>(15);
+  const [newCompVotePrice, setNewCompVotePrice] = useState<string>('15');
   const [creatingComp, setCreatingComp] = useState(false);
+
+  // --- COMPETITION ENTRY FEE & PRIZES EDITING STATE (Requirement 2 & 4) ---
+  const [compFeeInput, setCompFeeInput] = useState<string>('500');
+  const [compPrize1Input, setCompPrize1Input] = useState<string>('50,000 HT');
+  const [compPrize2Input, setCompPrize2Input] = useState<string>('25,000 HT');
+  const [compPrize3Input, setCompPrize3Input] = useState<string>('10,000 HT');
+  const [savingCompPricing, setSavingCompPricing] = useState<boolean>(false);
+  const [downloadingResultsId, setDownloadingResultsId] = useState<string | null>(null);
+
+  // --- NEW FEATURES (Turn 2): User DB Verification, Delete Comp/Match, Reset Leaderboard, Pay Prizes ---
+  const [verifyingUserIds, setVerifyingUserIds] = useState<{ [id: string]: boolean }>({});
+  const [deletingCompId, setDeletingCompId] = useState<string | null>(null);
+  const [deletingMatchId, setDeletingMatchId] = useState<string | null>(null);
+  const [resettingLeaderboard, setResettingLeaderboard] = useState<boolean>(false);
+  const [payingPrizePlace, setPayingPrizePlace] = useState<'first' | 'second' | 'third' | null>(null);
 
   // --- MATCH & VOTING STATE ---
   const [managingMatch, setManagingMatch] = useState<CompetitionMatch | null>(null);
@@ -170,36 +233,71 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
   const [pinSuccess, setPinSuccess] = useState('');
   const [pinChangeError, setPinChangeError] = useState('');
 
-  // Verify Admin PIN
-  const handleVerifyPin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setPinError('');
-    setLoadingPin(true);
-    try {
-      const res = await api.verifyAdminPin(adminPinInput.trim());
-      if (res.success && res.authorized) {
-        setAuthorized(true);
-        loadAdminData();
-      } else {
-        setPinError('Kòd sekirite administratè a pa kòrèk.');
+  // Verify Admin Session automatically via server
+  useEffect(() => {
+    let active = true;
+    const checkAdmin = async () => {
+      setCheckingSession(true);
+      if (!currentUser?.id || !currentUser?.adminToken) {
+        if (active) {
+          setAuthorized(false);
+          setCheckingSession(false);
+        }
+        return;
       }
-    } catch (err: any) {
-      setPinError(err.message || 'Erè verifikasyon.');
-    } finally {
-      setLoadingPin(false);
-    }
-  };
+      try {
+        const res = await api.verifyAdminSession(currentUser.id, currentUser.adminToken);
+        if (active) {
+          if (res.success && res.authorized) {
+            setAuthorized(true);
+            loadAdminData();
+          } else {
+            setAuthorized(false);
+          }
+        }
+      } catch {
+        if (active) setAuthorized(false);
+      } finally {
+        if (active) setCheckingSession(false);
+      }
+    };
+    checkAdmin();
+    return () => {
+      active = false;
+    };
+  }, [currentUser?.id, currentUser?.adminToken]);
 
   const loadAdminData = async () => {
     setLoadingData(true);
     try {
-      const [res, giftsRes, financeRes, balonRes, crashRes] = await Promise.all([
+      const [res, giftsRes, financeRes, balonRes, crashRes, monetRes, algoRes, memRes] = await Promise.all([
         api.getAdminOverview(),
         api.getGifts(),
         api.getAdminFinance(),
         api.getBalonAdminStats().catch(() => null),
         api.getAvionCrashAdminStats().catch(() => null),
+        api.getAdminMonetization().catch(() => null),
+        api.getAlgorithmIntelligence().catch(() => null),
+        api.getAdminMemoryOverview().catch(() => null),
       ]);
+
+      if (memRes && memRes.success) {
+        setMemoryOverview(memRes.overview);
+      }
+
+      if (monetRes && monetRes.success) {
+        setMonetizationData(monetRes);
+        if (monetRes.config) {
+          setMonetizationActivationFeeInput(String(monetRes.config.activationFee || 250));
+          setMonetization1kLikesInput(String(monetRes.config.earningsPer1000Likes || 500));
+          setMonetizationMilestoneInput(String(monetRes.config.followerMilestoneBonus || 1000));
+          setMonetizationMinFollowersInput(String(monetRes.config.minFollowersRequired || 1000));
+        }
+      }
+
+      if (algoRes && algoRes.success) {
+        setAlgorithmData(algoRes.data);
+      }
 
       if (res.success) {
         setOverview(res);
@@ -218,6 +316,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
         // Initialize default selected games for new comp form if empty
         if (newCompSelectedGames.length === 0 && res.games.length > 0) {
           setNewCompSelectedGames(res.games.slice(0, 6).map((g: Game) => g.id));
+        }
+
+        if (res.dailyLevelRecords) {
+          setScoreRecordsList(res.dailyLevelRecords);
+        } else {
+          api.getCompetitionScoreRecords().then(r => {
+            if (r.success && r.records) setScoreRecordsList(r.records);
+          }).catch(() => {});
         }
       }
 
@@ -285,7 +391,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
         onDataChanged();
       }
     } catch (err: any) {
-      alert(err.message || 'Erè nan mete ajou konfigirasyon Avion Crash.');
+      notify(err.message || 'Erè nan mete ajou konfigirasyon Avion Crash.');
     } finally {
       setSavingCrashConfig(false);
     }
@@ -311,7 +417,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
         onDataChanged();
       }
     } catch (err: any) {
-      alert(err.message || 'Erè nan mete ajou konfigirasyon 11 Balon.');
+      notify(err.message || 'Erè nan mete ajou konfigirasyon 11 Balon.');
     } finally {
       setSavingBalonConfig(false);
     }
@@ -322,7 +428,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
     const rawVal = editingGamePrice[game.id];
     const newFee = Number(rawVal);
     if (isNaN(newFee) || newFee < 0) {
-      alert('Tanpri mete yon pri ki valab (0 oswa plis).');
+      notify('Tanpri mete yon pri ki valab (0 oswa plis).');
       return;
     }
     setSavingGameId(game.id);
@@ -339,7 +445,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
         onDataChanged();
       }
     } catch (err) {
-      alert('Erè pandan anrejistreman pri a.');
+      notify('Erè pandan anrejistreman pri a.');
     } finally {
       setSavingGameId(null);
     }
@@ -357,7 +463,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
         onDataChanged();
       }
     } catch (err) {
-      alert('Erè pandan aktivasyon jwèt la.');
+      notify('Erè pandan aktivasyon jwèt la.');
     }
   };
 
@@ -380,10 +486,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
         setNewGameDesc('');
         loadAdminData();
         onDataChanged();
-        alert('Nouvo jwèt la ajoute avèk siksè nan lis pri a !');
+        notify('Nouvo jwèt la ajoute avèk siksè nan lis pri a !');
       }
     } catch (err) {
-      alert('Erè pandan kreyasyon jwèt la.');
+      notify('Erè pandan kreyasyon jwèt la.');
     } finally {
       setAddingGame(false);
     }
@@ -398,7 +504,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
       setGameStatsModalData(res);
     } catch (err: any) {
       console.error('Failed to load game stats:', err);
-      alert(err.message || 'Erè nan chaje estatistik jwèt la.');
+      notify(err.message || 'Erè nan chaje estatistik jwèt la.');
     } finally {
       setLoadingGameStats(false);
     }
@@ -406,6 +512,598 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
 
   // --- 2. COMPETITION AUTHORIZED GAMES & 7-DAY BRACKET ACTIONS ---
   const selectedComp = overview?.competitions.find(c => c.id === selectedCompManageId) || overview?.competitions[0];
+
+  // Synchronize inputs when selected competition changes (Requirement 2)
+  React.useEffect(() => {
+    if (selectedComp) {
+      setCompFeeInput(String(selectedComp.entryFee ?? 0));
+      setCompPrize1Input(selectedComp.prizes?.first || '50,000 HT');
+      setCompPrize2Input(selectedComp.prizes?.second || '25,000 HT');
+      setCompPrize3Input(selectedComp.prizes?.third || '10,000 HT');
+    }
+  }, [selectedComp?.id, selectedComp?.entryFee, selectedComp?.prizes?.first, selectedComp?.prizes?.second, selectedComp?.prizes?.third]);
+
+  // Handler to update entry fee & prizes (Requirement 2)
+  const handleSaveCompPricingAndPrizes = async () => {
+    if (!selectedComp) return;
+    const feeNum = Number(compFeeInput);
+    if (isNaN(feeNum) || feeNum < 0) {
+      notify('Tanpri antre yon pri enskripsyon valab (0 oswa plis).', 'error');
+      return;
+    }
+    setSavingCompPricing(true);
+    try {
+      const res = await api.updateCompetitionPricingPrizes(selectedComp.id, {
+        entryFee: feeNum,
+        firstPrize: compPrize1Input.trim() || '50,000 HT',
+        secondPrize: compPrize2Input.trim() || '25,000 HT',
+        thirdPrize: compPrize3Input.trim() || '10,000 HT',
+      });
+      if (res.success) {
+        loadAdminData();
+        onDataChanged();
+        notify(`Pri enskripsyon (${feeNum} HT) ak prim yo modifye avèk siksè pou ${selectedComp.name} !`, 'success');
+      } else {
+        notify(res.error || 'Erè pandan mizajou pri ak prim yo.', 'error');
+      }
+    } catch (err: any) {
+      notify(err.message || 'Erè pandan anrejistreman pri ak prim yo.', 'error');
+    } finally {
+      setSavingCompPricing(false);
+    }
+  };
+
+  // Monetization Handlers
+  const handleSaveMonetizationConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingMonetizationConfig(true);
+    setMonetizationMsg('');
+    try {
+      const res = await api.updateAdminMonetizationConfig({
+        activationFee: Number(monetizationActivationFeeInput),
+        earningsPer1000Likes: Number(monetization1kLikesInput),
+        followerMilestoneBonus: Number(monetizationMilestoneInput),
+        minFollowersRequired: Number(monetizationMinFollowersInput),
+      });
+      if (res.success) {
+        setMonetizationMsg('Konfigirasyon monetizasyon mete ajou avèk siksè !');
+        notify('Konfigirasyon monetizasyon anrejistre !', 'success');
+        loadAdminData();
+      } else {
+        notify(res.error || 'Erè nan anrejistreman.', 'error');
+      }
+    } catch (err: any) {
+      notify(err.message || 'Erè rezo.', 'error');
+    } finally {
+      setSavingMonetizationConfig(false);
+    }
+  };
+
+  const handleToggleCreatorStatus = async (creatorId: string, currentStatus: string, isCurrentlyMonetized: boolean) => {
+    const nextStatus = currentStatus === 'active' ? 'suspended' : 'active';
+    const nextMonetized = nextStatus === 'active';
+    try {
+      const res = await api.toggleUserMonetization(creatorId, {
+        status: nextStatus,
+        isMonetized: nextMonetized,
+      });
+      if (res.success) {
+        notify(`Estati kreyatè a chanje an "${nextStatus}" avèk siksè !`, 'success');
+        loadAdminData();
+      } else {
+        notify(res.error || 'Erè nan chanje estati kreyatè a.', 'error');
+      }
+    } catch (err: any) {
+      notify(err.message || 'Erè rezo.', 'error');
+    }
+  };
+
+  const handleExecutePayout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!payoutModalCreator) return;
+    const amount = Number(payoutAmountInput);
+    if (!amount || amount <= 0) {
+      notify('Tanpri antre yon montan valab.', 'error');
+      return;
+    }
+    if (!payoutPinInput.trim()) {
+      notify('Kòd PIN Administratè a obligatwa pou peman.', 'error');
+      return;
+    }
+
+    setPayoutLoading(true);
+    try {
+      const res = await api.payoutUserMonetization(payoutModalCreator.id, {
+        amount,
+        adminPin: payoutPinInput.trim(),
+      });
+      if (res.success) {
+        notify(`Peman ${amount} HT pou ${payoutModalCreator.fullName} reyisi avèk siksè !`, 'success');
+        setPayoutModalCreator(null);
+        setPayoutAmountInput('');
+        setPayoutPinInput('');
+        loadAdminData();
+      } else {
+        notify(res.error || 'Erè nan ekzekite peman an.', 'error');
+      }
+    } catch (err: any) {
+      notify(err.message || 'Erè pandan peman an.', 'error');
+    } finally {
+      setPayoutLoading(false);
+    }
+  };
+
+  const handleRunCleanFakeAccounts = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cleanFakeAccountsPin.trim()) {
+      notify('Kòd PIN Administratè a obligatwa.', 'error');
+      return;
+    }
+
+    setCleaningFakeAccounts(true);
+    try {
+      const res = await api.cleanFakeAccounts(cleanFakeAccountsPin.trim());
+      if (res.success) {
+        notify(res.message || 'Netwayaj fo kont reyisi !', 'success');
+        setShowCleanModal(false);
+        setCleanFakeAccountsPin('');
+        loadAdminData();
+      } else {
+        notify(res.error || 'Erè nan netwaye fo kont.', 'error');
+      }
+    } catch (err: any) {
+      notify(err.message || 'Erè pandan netwayaj la.', 'error');
+    } finally {
+      setCleaningFakeAccounts(false);
+    }
+  };
+
+  // Handler 1: Verify & Permanently register user account in database (Requirement 1)
+  const handleVerifyUserInDB = async (u: User) => {
+    setVerifyingUserIds(prev => ({ ...prev, [u.id]: true }));
+    try {
+      const res = await api.verifyUserInDB(u.id);
+      if (res.success) {
+        notify(`Kont ${u.fullName} anrejistre epi verifye nan bazdone a avèk siksè !`, 'success');
+        loadAdminData();
+        onDataChanged();
+      } else {
+        notify(res.error || 'Erè pandan anrejistreman kont lan.', 'error');
+      }
+    } catch (err: any) {
+      notify(err.message || 'Erè pandan anrejistreman kont lan.', 'error');
+    } finally {
+      setVerifyingUserIds(prev => ({ ...prev, [u.id]: false }));
+    }
+  };
+
+  // Handler 2A: Delete Competition with Confirmation (Requirement 2)
+  const handleDeleteCompetition = async (comp: Competition) => {
+    const confirmed = window.confirm(`Èske ou sèten ou vle efase konpetisyon "${comp.name}" la nèt nan bazdone a ? Aksyon sa a pa ka anile.`);
+    if (!confirmed) return;
+
+    setDeletingCompId(comp.id);
+    try {
+      const res = await api.deleteCompetition(comp.id);
+      if (res.success) {
+        notify(res.message || `Konpetisyon "${comp.name}" efase avèk siksè.`, 'success');
+        setSelectedCompManageId(null);
+        loadAdminData();
+        onDataChanged();
+      } else {
+        notify(res.error || 'Erè pandan efasman konpetisyon an.', 'error');
+      }
+    } catch (err: any) {
+      notify(err.message || 'Erè pandan efasman konpetisyon an.', 'error');
+    } finally {
+      setDeletingCompId(null);
+    }
+  };
+
+  // Handler 2B: Delete VS Match with Confirmation (Requirement 2)
+  const handleDeleteCompetitionMatch = async (comp: Competition, match: CompetitionMatch) => {
+    const matchLabel = `${match.player1?.fullName || 'Jwè 1'} vs ${match.player2?.fullName || 'Jwè 2'}`;
+    const confirmed = window.confirm(`Èske ou sèten ou vle efase match "${matchLabel}" la nan ${comp.name} ?`);
+    if (!confirmed) return;
+
+    setDeletingMatchId(match.id);
+    try {
+      const res = await api.deleteCompetitionMatch(comp.id, match.id);
+      if (res.success) {
+        notify(`Match "${matchLabel}" efase avèk siksè !`, 'success');
+        loadAdminData();
+        onDataChanged();
+      } else {
+        notify(res.error || 'Erè pandan efasman match la.', 'error');
+      }
+    } catch (err: any) {
+      notify(err.message || 'Erè pandan efasman match la.', 'error');
+    } finally {
+      setDeletingMatchId(null);
+    }
+  };
+
+  // Handler 3: Clean/Reset Leaderboard for Competition (Requirement 3)
+  const handleResetLeaderboard = async (comp: Competition) => {
+    const confirmed = window.confirm(`Èske ou sèten ou vle netwaye/reset tablo klasman pou "${comp.name}" ? Tout nòt patisipan yo pral remèt a zewo pou nouvo tounwa a. Kont itilizatè yo pap efase.`);
+    if (!confirmed) return;
+
+    setResettingLeaderboard(true);
+    try {
+      const res = await api.resetCompetitionLeaderboard(comp.id);
+      if (res.success) {
+        notify(`Tablo klasman pou "${comp.name}" netwaye avèk siksè !`, 'success');
+        loadAdminData();
+        onDataChanged();
+      } else {
+        notify(res.error || 'Erè pandan netwayaj klasman an.', 'error');
+      }
+    } catch (err: any) {
+      notify(err.message || 'Erè pandan netwayaj klasman an.', 'error');
+    } finally {
+      setResettingLeaderboard(false);
+    }
+  };
+
+  // Handler 4: Pay Prize directly to Winner Account (Requirement 4)
+  const handlePayCompetitionPrize = async (comp: Competition, place: 'first' | 'second' | 'third') => {
+    const placeLabel = place === 'first' ? '1ye Plas' : place === 'second' ? '2èm Plas' : '3èm Plas';
+    const rawPrize = place === 'first' ? comp.prizes?.first : place === 'second' ? comp.prizes?.second : comp.prizes?.third;
+    const confirmed = window.confirm(`Èske ou vle peye prim ${placeLabel} (${rawPrize}) dirèkteman sou balans kont gayan an nan ${comp.name} ?`);
+    if (!confirmed) return;
+
+    setPayingPrizePlace(place);
+    try {
+      const res = await api.payCompetitionPrize(comp.id, place);
+      if (res.success) {
+        notify(res.message || `Prim ${placeLabel} peye avèk siksè sou kont jwè a !`, 'success');
+        loadAdminData();
+        onDataChanged();
+      } else {
+        notify(res.error || `Erè pandan peman prim ${placeLabel} an.`, 'error');
+      }
+    } catch (err: any) {
+      notify(err.message || `Erè pandan peman prim ${placeLabel} an.`, 'error');
+    } finally {
+      setPayingPrizePlace(null);
+    }
+  };
+
+  // Helper function to generate and download a high-res image of the Leaderboard and Results (PNG)
+  const generateCompetitionResultsImage = async (comp: Competition) => {
+    const scores = [...(comp.scores || [])].sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
+    const matches = comp.matches || [];
+
+    // Calculate dimensions
+    const width = 1200;
+    const headerHeight = 240;
+    const rowHeight = 44;
+    const scoresSectionHeight = Math.max(1, scores.length) * rowHeight + 90;
+    const matchRowHeight = 40;
+    const matchesSectionHeight = matches.length > 0 ? (matches.length * matchRowHeight + 90) : 70;
+    const footerHeight = 70;
+    const totalHeight = headerHeight + scoresSectionHeight + matchesSectionHeight + footerHeight;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = totalHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas context not available');
+
+    // 1. Background Gradient
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, totalHeight);
+    bgGrad.addColorStop(0, '#070B14');
+    bgGrad.addColorStop(0.5, '#0D1527');
+    bgGrad.addColorStop(1, '#080C16');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, width, totalHeight);
+
+    // Decorative top accent border
+    const topAccent = ctx.createLinearGradient(0, 0, width, 0);
+    topAccent.addColorStop(0, '#F59E0B');
+    topAccent.addColorStop(0.5, '#EF4444');
+    topAccent.addColorStop(1, '#8B5CF6');
+    ctx.fillStyle = topAccent;
+    ctx.fillRect(0, 0, width, 8);
+
+    // 2. Header Box
+    ctx.fillStyle = '#111827';
+    ctx.fillRect(40, 30, width - 80, 180);
+    ctx.strokeStyle = '#1F2937';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(40, 30, width - 80, 180);
+
+    // Brand Name
+    ctx.font = '900 28px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillStyle = '#F59E0B';
+    ctx.fillText('⚡ MASTER PLAY', 65, 75);
+
+    ctx.font = 'bold 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillStyle = '#94A3B8';
+    ctx.fillText('RAPÒ OFISYÈL REZILTA & TABLO KLASMAN', 290, 75);
+
+    // Competition Title
+    ctx.font = '900 32px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(comp.name, 65, 120);
+
+    // Badges / Metadata
+    ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillStyle = '#10B981';
+    ctx.fillText(`Enskripsyon: ${comp.entryFee} HTG`, 65, 155);
+
+    ctx.fillStyle = '#FBBF24';
+    ctx.fillText(`1ye Plas: ${comp.prizes?.first || '50,000 HT'}`, 260, 155);
+
+    ctx.fillStyle = '#CBD5E1';
+    ctx.fillText(`2èm Plas: ${comp.prizes?.second || '25,000 HT'}`, 480, 155);
+
+    ctx.fillStyle = '#F97316';
+    ctx.fillText(`3èm Plas: ${comp.prizes?.third || '10,000 HT'}`, 680, 155);
+
+    // Status & Date info
+    ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillStyle = '#64748B';
+    const dateStr = new Date().toLocaleString('ht-HT', { dateStyle: 'long', timeStyle: 'short' });
+    ctx.fillText(`Estati: ${comp.status || 'Aktif'} • Jounen: ${comp.currentDay || 'Lendi'} • Total Patisipan: ${scores.length}`, 65, 185);
+    ctx.fillText(`Ekstrè sou aparèy admin la: ${dateStr}`, width - 420, 185);
+
+    let curY = 240;
+
+    // 3. Section Title: Leaderboard
+    ctx.font = '900 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillStyle = '#F59E0B';
+    ctx.fillText('🏆 TABLO KLASMAN OFISYÈL (LEADERBOARD)', 40, curY);
+    curY += 15;
+
+    // Table Header
+    curY += 15;
+    ctx.fillStyle = '#1E293B';
+    ctx.fillRect(40, curY, width - 80, 36);
+    ctx.fillStyle = '#94A3B8';
+    ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('RANG', 55, curY + 23);
+    ctx.fillText('NON JWÈ A', 140, curY + 23);
+    ctx.fillText('TELEFÒN', 390, curY + 23);
+    ctx.fillText('LENDI', 540, curY + 23);
+    ctx.fillText('MADI', 620, curY + 23);
+    ctx.fillText('MÈKREDI', 700, curY + 23);
+    ctx.fillText('JEDI', 785, curY + 23);
+    ctx.fillText('VÒT', 860, curY + 23);
+    ctx.fillText('TOTAL PWEN', 950, curY + 23);
+    ctx.fillText('ESTATI', 1075, curY + 23);
+    curY += 36;
+
+    if (scores.length === 0) {
+      ctx.fillStyle = '#0F172A';
+      ctx.fillRect(40, curY, width - 80, 44);
+      ctx.font = 'italic 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillStyle = '#64748B';
+      ctx.fillText('Poko gen patisipan ki anrejistre nòt nan konpetisyon sa a.', 60, curY + 27);
+      curY += 44;
+    } else {
+      scores.forEach((s, idx) => {
+        const isTop8 = idx < 8;
+        const isPodium = idx < 3;
+        ctx.fillStyle = idx % 2 === 0 ? '#0B1120' : '#111827';
+        if (isPodium) {
+          ctx.fillStyle = idx === 0 ? 'rgba(245, 158, 11, 0.12)' : idx === 1 ? 'rgba(203, 213, 225, 0.08)' : 'rgba(217, 119, 6, 0.08)';
+        }
+        ctx.fillRect(40, curY, width - 80, rowHeight);
+
+        // Divider
+        ctx.strokeStyle = '#1E293B';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(40, curY + rowHeight);
+        ctx.lineTo(width - 40, curY + rowHeight);
+        ctx.stroke();
+
+        // Rank Badge
+        ctx.font = 'bold 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        if (idx === 0) {
+          ctx.fillStyle = '#FBBF24';
+          ctx.fillText('🥇 1ye', 55, curY + 27);
+        } else if (idx === 1) {
+          ctx.fillStyle = '#E2E8F0';
+          ctx.fillText('🥈 2yèm', 55, curY + 27);
+        } else if (idx === 2) {
+          ctx.fillStyle = '#D97706';
+          ctx.fillText('🥉 3yèm', 55, curY + 27);
+        } else {
+          ctx.fillStyle = '#94A3B8';
+          ctx.fillText(`${idx + 1}yèm`, 55, curY + 27);
+        }
+
+        // Player Name
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        const pName = (s.fullName || 'Jwè Enkoni').substring(0, 26);
+        ctx.fillText(pName, 140, curY + 27);
+
+        // Phone
+        ctx.fillStyle = '#94A3B8';
+        ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText(s.phoneNumber || '-', 390, curY + 27);
+
+        // Daily scores
+        ctx.fillStyle = '#CBD5E1';
+        ctx.fillText(String(s.dailyScores?.lendi ?? 0), 540, curY + 27);
+        ctx.fillText(String(s.dailyScores?.madi ?? 0), 620, curY + 27);
+        ctx.fillText(String(s.dailyScores?.mekredi ?? 0), 700, curY + 27);
+        ctx.fillText(String(s.dailyScores?.jedi ?? 0), 785, curY + 27);
+
+        // Votes
+        ctx.fillStyle = '#A78BFA';
+        ctx.fillText(String(s.votesCount ?? 0), 860, curY + 27);
+
+        // Total Points
+        ctx.fillStyle = '#FBBF24';
+        ctx.font = '900 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText(`${(s.totalScore || 0).toLocaleString()} pts`, 950, curY + 27);
+
+        // Top 8 Status badge
+        ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        if (isTop8) {
+          ctx.fillStyle = '#34D399';
+          ctx.fillText('TOP 8 KALIFYE', 1075, curY + 27);
+        } else {
+          ctx.fillStyle = '#64748B';
+          ctx.fillText('Elimine', 1075, curY + 27);
+        }
+
+        curY += rowHeight;
+      });
+    }
+
+    curY += 30;
+
+    // 4. Section Title: VS Matches
+    ctx.font = '900 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillStyle = '#EF4444';
+    ctx.fillText('🔥 REZILTA MATCH FAS-A-FAS (VS MATCHES)', 40, curY);
+    curY += 15;
+
+    curY += 15;
+    ctx.fillStyle = '#1E293B';
+    ctx.fillRect(40, curY, width - 80, 36);
+    ctx.fillStyle = '#94A3B8';
+    ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('FAZ / ROUND', 55, curY + 23);
+    ctx.fillText('JWÈ 1', 250, curY + 23);
+    ctx.fillText('NÒT', 470, curY + 23);
+    ctx.fillText('JWÈ 2', 530, curY + 23);
+    ctx.fillText('NÒT', 750, curY + 23);
+    ctx.fillText('GAYAN MATCH', 820, curY + 23);
+    ctx.fillText('ESTATI', 1060, curY + 23);
+    curY += 36;
+
+    if (matches.length === 0) {
+      ctx.fillStyle = '#0F172A';
+      ctx.fillRect(40, curY, width - 80, 44);
+      ctx.font = 'italic 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillStyle = '#64748B';
+      ctx.fillText('Poko gen match VS ki pwograme pou konpetisyon sa a.', 60, curY + 27);
+      curY += 44;
+    } else {
+      matches.forEach((m, idx) => {
+        ctx.fillStyle = idx % 2 === 0 ? '#0B1120' : '#111827';
+        ctx.fillRect(40, curY, width - 80, matchRowHeight);
+
+        ctx.strokeStyle = '#1E293B';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(40, curY + matchRowHeight);
+        ctx.lineTo(width - 40, curY + matchRowHeight);
+        ctx.stroke();
+
+        const roundLabel = m.round === 'final'
+          ? '👑 GRAN FINAL'
+          : m.round === 'demi'
+          ? `Demi-Final ${m.matchNumber || ''}`
+          : `Top 8 (Match ${m.matchNumber || idx + 1})`;
+
+        ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillStyle = m.round === 'final' ? '#FBBF24' : '#E2E8F0';
+        ctx.fillText(roundLabel, 55, curY + 25);
+
+        // Player 1
+        ctx.fillStyle = m.winnerId === m.player1?.userId ? '#34D399' : '#FFFFFF';
+        ctx.fillText((m.player1?.fullName || 'Jwè 1').substring(0, 22), 250, curY + 25);
+
+        // Score 1
+        ctx.font = '900 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillStyle = '#FBBF24';
+        ctx.fillText(String(m.player1?.score ?? '-'), 470, curY + 25);
+
+        // Player 2
+        ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillStyle = m.winnerId === m.player2?.userId ? '#34D399' : '#FFFFFF';
+        ctx.fillText((m.player2?.fullName || 'Jwè 2').substring(0, 22), 530, curY + 25);
+
+        // Score 2
+        ctx.font = '900 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillStyle = '#FBBF24';
+        ctx.fillText(String(m.player2?.score ?? '-'), 750, curY + 25);
+
+        // Winner
+        ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        const winnerName = m.winnerId
+          ? (m.winnerId === m.player1?.userId ? m.player1?.fullName : m.player2?.fullName)
+          : 'An atant';
+        ctx.fillStyle = m.winnerId ? '#34D399' : '#94A3B8';
+        ctx.fillText((winnerName || '').substring(0, 24), 820, curY + 25);
+
+        // Status
+        ctx.fillStyle = m.status === 'Fini' ? '#34D399' : '#FBBF24';
+        ctx.fillText(m.status || 'Pwograme', 1060, curY + 25);
+
+        curY += matchRowHeight;
+      });
+    }
+
+    // 5. Footer Signature Box
+    curY += 20;
+    ctx.fillStyle = '#0B0F19';
+    ctx.fillRect(40, curY, width - 80, 40);
+    ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillStyle = '#64748B';
+    ctx.fillText('MASTER PLAY • Sistèm Otomatik Konpetisyon & Klasman • Sètifye pa Panèl Administratè a', 60, curY + 25);
+
+    // Convert Canvas to PNG Blob & Trigger Download
+    return new Promise<void>((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          reject(new Error('Canvas blob generation failed'));
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        const safeName = comp.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+        a.download = `Klasman_Imaj_${safeName}_${new Date().toISOString().split('T')[0]}.png`;
+        document.body.appendChild(a);
+        a.click();
+        URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        resolve();
+      }, 'image/png');
+    });
+  };
+
+  // Handler to download competition results image (PNG) on phone/desktop
+  const handleDownloadCompetitionResults = async (comp: Competition) => {
+    setDownloadingResultsId(comp.id);
+    try {
+      await generateCompetitionResultsImage(comp);
+      notify(`Imaj klasman konplè pou "${comp.name}" telechaje avèk siksè sou telefòn ou !`, 'success');
+    } catch (err: any) {
+      console.error('Error generating competition results image:', err);
+      // Fallback: Download via server CSV/Text if canvas fails
+      try {
+        const response = await fetch(`/api/admin/competitions/${comp.id}/download-results`);
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = url;
+          const safeName = comp.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+          a.download = `Rezilta_Klasman_${safeName}_${new Date().toISOString().split('T')[0]}.csv`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          notify(`Fichye rezilta klasman pou "${comp.name}" telechaje sou telefòn ou !`, 'success');
+          return;
+        }
+      } catch (fallbackErr) {}
+      notify('Erè pandan telechajman imaj klasman an.', 'error');
+    } finally {
+      setDownloadingResultsId(null);
+    }
+  };
 
   const handleToggleGameForComp = async (compId: string, gameId: string) => {
     if (!selectedComp) return;
@@ -415,7 +1113,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
       : [...current, gameId];
 
     if (updated.length === 0) {
-      alert('Konpetisyon an dwe gen omwen 1 jwèt otorize.');
+      notify('Konpetisyon an dwe gen omwen 1 jwèt otorize.');
       return;
     }
 
@@ -426,7 +1124,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
         onDataChanged();
       }
     } catch (err) {
-      alert('Erè pandan mizajou jwèt konpetisyon an.');
+      notify('Erè pandan mizajou jwèt konpetisyon an.');
     }
   };
 
@@ -438,7 +1136,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
         onDataChanged();
       }
     } catch (err) {
-      alert('Erè pandan chanjman jounen an.');
+      notify('Erè pandan chanjman jounen an.');
     }
   };
 
@@ -449,12 +1147,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
       if (res.success) {
         loadAdminData();
         onDataChanged();
-        alert('Felisitasyon ! Top 8 la konfime epi 4 match eliminatwa Vandredi yo pwograme.');
+        notify('Felisitasyon ! Top 8 la konfime epi 4 match eliminatwa Vandredi yo pwograme.');
       } else {
-        alert(res.error || 'Erè pandan kalifikasyon an.');
+        notify(res.error || 'Erè pandan kalifikasyon an.');
       }
     } catch (err: any) {
-      alert(err.message || 'Erè rezo.');
+      notify(err.message || 'Erè rezo.');
     }
   };
 
@@ -491,10 +1189,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
         loadAdminData();
         onDataChanged();
       } else {
-        alert(res.error || 'Erè anrejistreman rezilta.');
+        notify(res.error || 'Erè anrejistreman rezilta.');
       }
     } catch (err) {
-      alert('Erè pandan anrejistreman rezilta match la.');
+      notify('Erè pandan anrejistreman rezilta match la.');
     } finally {
       setSubmittingMatch(false);
     }
@@ -503,7 +1201,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
   const handleCreateComp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newCompSelectedGames.length === 0) {
-      alert('Tanpri chwazi omwen 1 jwèt pou konpetisyon sa a.');
+      notify('Tanpri chwazi omwen 1 jwèt pou konpetisyon sa a.');
       return;
     }
     setCreatingComp(true);
@@ -539,10 +1237,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
         setSelectedCompManageId(res.competition.id);
         loadAdminData();
         onDataChanged();
-        alert('Nouvo konpetisyon an kreye avèk siksè !');
+        notify('Nouvo konpetisyon an kreye avèk siksè !');
       }
     } catch (err) {
-      alert('Erè pandan kreyasyon konpetisyon an.');
+      notify('Erè pandan kreyasyon konpetisyon an.');
     } finally {
       setCreatingComp(false);
     }
@@ -554,12 +1252,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
       if (res.success) {
         loadAdminData();
         onDataChanged();
-        alert(`Estati konpetisyon an chanje a: "${status}"`);
+        notify(`Estati konpetisyon an chanje a: "${status}"`);
       } else {
-        alert(res.error || 'Erè chanjman estati.');
+        notify(res.error || 'Erè chanjman estati.');
       }
     } catch (err: any) {
-      alert(err.message || 'Erè rezo.');
+      notify(err.message || 'Erè rezo.');
     }
   };
 
@@ -569,10 +1267,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
       if (res.success) {
         loadAdminData();
         onDataChanged();
-        alert(`Sistèm vòt la ${votingEnabled ? 'louvri' : 'fèmen'} avèk siksè !`);
+        notify(`Sistèm vòt la ${votingEnabled ? 'louvri' : 'fèmen'} avèk siksè !`);
       }
     } catch (err: any) {
-      alert(err.message || 'Erè pandan mizajou vòt la.');
+      notify(err.message || 'Erè pandan mizajou vòt la.');
     }
   };
 
@@ -580,11 +1278,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
     e.preventDefault();
     if (!selectedComp) return;
     if (!newMatchPlayer1Id || !newMatchPlayer2Id) {
-      alert('Tanpri chwazi de jwè diferan.');
+      notify('Tanpri chwazi de jwè diferan.');
       return;
     }
     if (newMatchPlayer1Id === newMatchPlayer2Id) {
-      alert('Ou pa ka chwazi menm jwè a pou tou de bò yo.');
+      notify('Ou pa ka chwazi menm jwè a pou tou de bò yo.');
       return;
     }
     setCreatingMatch(true);
@@ -605,12 +1303,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
         setNewMatchPlayer2Id('');
         loadAdminData();
         onDataChanged();
-        alert('Match fas-a-fas la pwograme avèk siksè !');
+        notify('Match fas-a-fas la pwograme avèk siksè !');
       } else {
-        alert(res.error || 'Erè pandan kreyasyon match la.');
+        notify(res.error || 'Erè pandan kreyasyon match la.');
       }
     } catch (err: any) {
-      alert(err.message || 'Erè rezo.');
+      notify(err.message || 'Erè rezo.');
     } finally {
       setCreatingMatch(false);
     }
@@ -621,7 +1319,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
     const rawVal = editingGiftPrices[gift.id];
     const newPrice = Number(rawVal);
     if (isNaN(newPrice) || newPrice <= 0) {
-      alert('Tanpri mete yon pri pozitif.');
+      notify('Tanpri mete yon pri pozitif.');
       return;
     }
     setSavingGiftId(gift.id);
@@ -637,10 +1335,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
       if (res.success) {
         loadAdminData();
         onDataChanged();
-        alert(`Pri pou ${gift.name} ${gift.icon} mete ajou a ${newPrice} HT !`);
+        notify(`Pri pou ${gift.name} ${gift.icon} mete ajou a ${newPrice} HT !`);
       }
     } catch (err) {
-      alert('Erè anrejistreman pri kado a.');
+      notify('Erè anrejistreman pri kado a.');
     } finally {
       setSavingGiftId(null);
     }
@@ -661,7 +1359,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
         onDataChanged();
       }
     } catch (err) {
-      alert('Erè chanjman estati kado a.');
+      notify('Erè chanjman estati kado a.');
     }
   };
 
@@ -682,10 +1380,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
         setNewGiftDesc('');
         loadAdminData();
         onDataChanged();
-        alert('Nouvo kado a ajoute avèk siksè nan Boutik Kado a !');
+        notify('Nouvo kado a ajoute avèk siksè nan Boutik Kado a !');
       }
     } catch (err) {
-      alert('Erè pandan kreyasyon kado a.');
+      notify('Erè pandan kreyasyon kado a.');
     }
   };
 
@@ -739,7 +1437,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
           resetPostForm();
           loadAdminData();
           onDataChanged();
-          alert('Piblikasyon an modifye avèk siksè !');
+          notify('Piblikasyon an modifye avèk siksè !');
         }
       } else {
         // Create new post
@@ -758,11 +1456,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
           resetPostForm();
           loadAdminData();
           onDataChanged();
-          alert('Piblikasyon an afiche avèk siksè nan fil aplikasyon an !');
+          notify('Piblikasyon an afiche avèk siksè nan fil aplikasyon an !');
         }
       }
     } catch (err) {
-      alert('Erè pandan kreyasyon piblikasyon an.');
+      notify('Erè pandan kreyasyon piblikasyon an.');
     } finally {
       setCreatingPost(false);
     }
@@ -797,7 +1495,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
       loadAdminData();
       onDataChanged();
     } catch (err) {
-      alert('Erè pandan efasman an.');
+      notify('Erè pandan efasman an.');
     }
   };
 
@@ -819,7 +1517,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
         onDataChanged();
       }
     } catch (err) {
-      alert('Erè pandan revizyon tranzaksyon an.');
+      notify('Erè pandan revizyon tranzaksyon an.');
     } finally {
       setSubmittingReview(false);
     }
@@ -843,7 +1541,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
         loadAdminData();
       }
     } catch (err) {
-      alert('Erè pandan voye notifikasyon an.');
+      notify('Erè pandan voye notifikasyon an.');
     } finally {
       setSendingNotif(false);
     }
@@ -868,59 +1566,130 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
     }
   };
 
-  // 1. PIN LOGIN SCREEN IF NOT AUTHORIZED
+  // 1. SERVER-VERIFIED ACCESS CONTROL
+  if (checkingSession) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+        <div className="w-full max-w-sm bg-[#0F172A] border border-slate-800 rounded-3xl p-8 shadow-2xl text-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/30 animate-pulse">
+            <Shield className="w-7 h-7" />
+          </div>
+          <p className="text-sm font-bold text-slate-300">Verifikasyon aksè administratè...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const handleAdminPinSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminPinInput.trim()) {
+      setAdminPinError('Tanpri antre kòd sekirite administratè a.');
+      return;
+    }
+    setVerifyingPin(true);
+    setAdminPinError('');
+    try {
+      const res = await api.verifyAdminPin(adminPinInput.trim());
+      if (res.success && res.authorized) {
+        setAuthorized(true);
+        setAdminPinInput('');
+        loadAdminData();
+      } else {
+        setAdminPinError(res.error || 'Kòd sekirite administratè a pa kòrèk.');
+      }
+    } catch {
+      setAdminPinError('Erè koneksyon. Tanpri reeseye.');
+    } finally {
+      setVerifyingPin(false);
+    }
+  };
+
+  const handleCertifyUser = async (targetUser: User) => {
+    setCertifyingUserIds((prev) => ({ ...prev, [targetUser.id]: true }));
+    try {
+      const res = await api.certifyUser(targetUser.id, currentUser?.fullName || currentUser?.id);
+      if (res.success) {
+        notify(`Kont ${targetUser.fullName} sètifye avèk siksè!`, 'success');
+        await loadAdminData();
+        onDataChanged();
+      } else {
+        notify(res.error || 'Pa kapab sètifye kont sa a.', 'error');
+      }
+    } catch {
+      notify('Erè pandan sètifikasyon kont lan.', 'error');
+    } finally {
+      setCertifyingUserIds((prev) => ({ ...prev, [targetUser.id]: false }));
+    }
+  };
+
+  const handleUncertifyUser = async (targetUser: User) => {
+    setCertifyingUserIds((prev) => ({ ...prev, [targetUser.id]: true }));
+    try {
+      const res = await api.uncertifyUser(targetUser.id, currentUser?.fullName || currentUser?.id);
+      if (res.success) {
+        notify(`Sètifikasyon pou ${targetUser.fullName} retire.`, 'success');
+        await loadAdminData();
+        onDataChanged();
+      } else {
+        notify(res.error || 'Pa kapab retire sètifikasyon kont sa a.', 'error');
+      }
+    } catch {
+      notify('Erè pandan retire sètifikasyon kont lan.', 'error');
+    } finally {
+      setCertifyingUserIds((prev) => ({ ...prev, [targetUser.id]: false }));
+    }
+  };
+
   if (!authorized) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
-        <div className="w-full max-w-sm bg-[#0F172A] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-6">
-          <div className="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/30">
+        <div className="w-full max-w-sm bg-[#0F172A] border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-5">
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/30">
             <Lock className="w-8 h-8" />
           </div>
 
           <div>
-            <h2 className="text-xl font-black text-white">Espas Administrasyon</h2>
-            <p className="text-xs text-slate-400 mt-1">
-              Antre kòd sekirite administratè ofisyèl MASTER PLAY ou a pou w ka jere pri, konpetisyon ak piblikasyon.
+            <h2 className="text-xl font-black text-white">Aksè Administrasyon</h2>
+            <p className="text-xs text-slate-400 mt-2">
+              Antre kòd sekirite administratè a pou aksede espas jesyon MASTER PLAY la.
             </p>
           </div>
 
-          {pinError && (
-            <div className="p-3 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 text-xs font-bold flex items-center gap-2 text-left">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{pinError}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleVerifyPin} className="space-y-4">
+          <form onSubmit={handleAdminPinSubmit} className="space-y-3 text-left">
             <div>
               <input
                 type="password"
-                required
-                autoFocus
                 value={adminPinInput}
                 onChange={(e) => setAdminPinInput(e.target.value)}
-                placeholder="Tape kòd admin (prince509)..."
-                className="w-full bg-[#080C16] border border-slate-700 rounded-2xl px-4 py-3 text-sm text-center tracking-widest text-white focus:outline-none focus:border-amber-400"
+                placeholder="Antre kòd administratè a..."
+                className="w-full bg-[#080C16] border border-slate-700 focus:border-amber-500 rounded-xl px-4 py-3 text-sm text-white outline-none transition-colors"
+                autoFocus
               />
             </div>
 
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-colors"
-              >
-                Anile
-              </button>
-              <button
-                type="submit"
-                disabled={loadingPin}
-                className="flex-1 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black shadow-lg shadow-amber-950/40 transition-all"
-              >
-                {loadingPin ? 'Verifikasyon...' : 'Ouvri Sesyon'}
-              </button>
-            </div>
+            {adminPinError && (
+              <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{adminPinError}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={verifyingPin}
+              className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black transition-colors disabled:opacity-50"
+            >
+              {verifyingPin ? 'Verifikasyon...' : 'Ouvri Paj Admin'}
+            </button>
           </form>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-colors"
+          >
+            Retounen
+          </button>
         </div>
       </div>
     );
@@ -939,7 +1708,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
             <div className="text-sm font-black text-white flex items-center gap-2">
               <span>Paj Administrasyon</span>
               <span className="text-[10px] bg-amber-500 text-slate-950 font-bold px-2 py-0.2 rounded-full">
-                Admin: Prince509
+                Admin: {currentUser?.fullName || 'Administratè'}
               </span>
             </div>
             <div className="text-[10px] text-slate-400">Kontwòl santral MASTER PLAY & Kèkè Challenge</div>
@@ -984,6 +1753,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
               badge: (overview?.stats?.pendingDepositsCount || 0) + (overview?.stats?.pendingWithdrawalsCount || 0),
             },
             { id: 'itilizate', label: 'Itilizatè yo', icon: Users, badge: overview?.users?.length },
+            {
+              id: 'setifikasyon',
+              label: 'Sètifikasyon Kont',
+              icon: CheckCircle2,
+              badge: overview?.users?.filter((u) => u.certificationStatus !== 'sètifye' && u.role !== 'ADMIN' && !u.isAdmin).length,
+            },
+            {
+              id: 'memwa_database',
+              label: 'Memwa / Database System',
+              icon: Shield,
+              badge: memoryOverview?.stats?.eventsCount,
+            },
+            { id: 'monetizasyon', label: 'Monetizasyon Kreyatè', icon: Sparkles, badge: monetizationData?.creators?.length },
+            { id: 'algorithm_intelligence', label: '🧠 Algorithm Master', icon: Shield, badge: algorithmData?.anomalies?.length },
             { id: 'notifikasyon', label: 'Voye Notifikasyon', icon: Bell },
             { id: 'anviwonman', label: 'Sekirite Admin & PIN', icon: Settings },
           ].map((item: any) => {
@@ -1033,6 +1816,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
               { id: 'piblikasyon', label: 'Piblikasyon' },
               { id: 'tranzaksyon', label: 'NatCash' },
               { id: 'itilizate', label: 'Itilizatè' },
+              { id: 'setifikasyon', label: '✅ Sètifikasyon' },
+              { id: 'memwa_database', label: '💾 Memwa/DB' },
+              { id: 'monetizasyon', label: '⭐ Monetizasyon' },
+              { id: 'algorithm_intelligence', label: '🧠 Algorithm' },
               { id: 'notifikasyon', label: 'Notif' },
               { id: 'anviwonman', label: 'PIN' },
             ].map((tab: any) => (
@@ -2296,6 +3083,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
                           </div>
                         </div>
 
+                        {/* Télécharger Résultats Image Button */}
+                        <button
+                          onClick={() => handleDownloadCompetitionResults(selectedComp)}
+                          disabled={downloadingResultsId === selectedComp.id}
+                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md disabled:opacity-50"
+                          title="Telechaje yon imaj (PNG) konplè sou telefòn ou ki gen tout rezilta ak klasman konpetisyon an"
+                        >
+                          <ImageIcon className="w-3.5 h-3.5 text-amber-300" />
+                          <span>{downloadingResultsId === selectedComp.id ? 'Jenerasyon Imaj...' : 'Télécharger Résultats (Imaj)'}</span>
+                        </button>
+
                         {/* Voting Toggle Button */}
                         <button
                           onClick={() => handleToggleCompVoting(selectedComp.id, !selectedComp.votingEnabled, selectedComp.votePrice || 15)}
@@ -2321,11 +3119,130 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
                           <Plus className="w-3.5 h-3.5" />
                           <span>+ Kreye Match VS</span>
                         </button>
+
+                        {/* Requirement 2: Bouton « Efase » devan chak compétition */}
+                        <button
+                          onClick={() => handleDeleteCompetition(selectedComp)}
+                          disabled={deletingCompId === selectedComp.id}
+                          className="px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/40 font-bold text-xs flex items-center gap-1 transition-all shadow-md disabled:opacity-50"
+                          title="Efase konpetisyon sa a nèt nan bazdone a (avèk konfimasyon)"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>{deletingCompId === selectedComp.id ? 'Efasman...' : 'Efase'}</span>
+                        </button>
                       </div>
                     </div>
                   </div>
 
-                  {/* 2. CHWAZI JWÈT KONPETISYON AN (REQUIREMENT 2) */}
+                  {/* 2. PRI ENSKRIPSYON AK PRIM KONPETISYON (ADMIN MODIFICATION) */}
+                  <div className="p-5 rounded-3xl bg-[#131B2E] border border-slate-800 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+                      <div>
+                        <h4 className="text-sm font-black text-emerald-400 flex items-center gap-2">
+                          <DollarSign className="w-4 h-4" />
+                          <span>Pri Enskripsyon ak Prim Konpetisyon</span>
+                        </h4>
+                        <p className="text-xs text-slate-400">
+                          Modifye pri enskripsyon jwè yo peye ak montan kach prim pou 1ye, 2èm ak 3èm plas konpetisyon sa a.
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleSaveCompPricingAndPrizes}
+                        disabled={savingCompPricing}
+                        className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center gap-1.5 transition-all shadow-md self-start sm:self-auto disabled:opacity-50"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        <span>{savingCompPricing ? 'Ap anrejistre...' : 'Anrejistre Pri & Prim'}</span>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                      {/* Entry Fee */}
+                      <div className="bg-[#0B0F19] p-3 rounded-2xl border border-slate-800">
+                        <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                          Pri Enskripsyon (HTG)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="0"
+                            step="10"
+                            value={compFeeInput}
+                            onChange={(e) => setCompFeeInput(e.target.value)}
+                            placeholder="Egzanp: 250"
+                            className="w-full bg-[#131B2E] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono font-bold focus:outline-none focus:border-emerald-500"
+                          />
+                          <span className="absolute right-3 top-2.5 text-xs text-slate-500 font-bold">HTG</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-1">Montan jwè a ap peze pou enskri.</p>
+                      </div>
+
+                      {/* 1st Prize */}
+                      <div className="bg-[#0B0F19] p-3 rounded-2xl border border-amber-500/30">
+                        <label className="block text-[11px] font-bold text-amber-400 mb-1 flex items-center gap-1">
+                          <Crown className="w-3 h-3 text-amber-400" />
+                          <span>Prim 1ye Plas (HTG)</span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="0"
+                            step="50"
+                            value={compPrize1Input}
+                            onChange={(e) => setCompPrize1Input(e.target.value)}
+                            placeholder="Egzanp: 5000"
+                            className="w-full bg-[#131B2E] border border-amber-500/40 rounded-xl px-3 py-2 text-sm text-amber-300 font-mono font-black focus:outline-none focus:border-amber-400"
+                          />
+                          <span className="absolute right-3 top-2.5 text-xs text-amber-500/70 font-bold">HTG</span>
+                        </div>
+                        <p className="text-[10px] text-amber-400/70 mt-1">Gwo chèk pou Chanpyon an.</p>
+                      </div>
+
+                      {/* 2nd Prize */}
+                      <div className="bg-[#0B0F19] p-3 rounded-2xl border border-slate-400/30">
+                        <label className="block text-[11px] font-bold text-slate-300 mb-1 flex items-center gap-1">
+                          <Award className="w-3 h-3 text-slate-400" />
+                          <span>Prim 2èm Plas (HTG)</span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="0"
+                            step="50"
+                            value={compPrize2Input}
+                            onChange={(e) => setCompPrize2Input(e.target.value)}
+                            placeholder="Egzanp: 2500"
+                            className="w-full bg-[#131B2E] border border-slate-600 rounded-xl px-3 py-2 text-sm text-slate-200 font-mono font-black focus:outline-none focus:border-slate-400"
+                          />
+                          <span className="absolute right-3 top-2.5 text-xs text-slate-500 font-bold">HTG</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1">Prim pou Vis-Chanpyon an.</p>
+                      </div>
+
+                      {/* 3rd Prize */}
+                      <div className="bg-[#0B0F19] p-3 rounded-2xl border border-amber-700/30">
+                        <label className="block text-[11px] font-bold text-amber-600 mb-1 flex items-center gap-1">
+                          <Medal className="w-3 h-3 text-amber-600" />
+                          <span>Prim 3èm Plas (HTG)</span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="0"
+                            step="50"
+                            value={compPrize3Input}
+                            onChange={(e) => setCompPrize3Input(e.target.value)}
+                            placeholder="Egzanp: 1000"
+                            className="w-full bg-[#131B2E] border border-amber-800/50 rounded-xl px-3 py-2 text-sm text-amber-400 font-mono font-black focus:outline-none focus:border-amber-600"
+                          />
+                          <span className="absolute right-3 top-2.5 text-xs text-amber-700 font-bold">HTG</span>
+                        </div>
+                        <p className="text-[10px] text-amber-600/80 mt-1">Prim pou 3èm loreya a.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3. CHWAZI JWÈT KONPETISYON AN (REQUIREMENT 2) */}
                   <div className="p-5 rounded-3xl bg-[#131B2E] border border-slate-800 space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
@@ -2380,14 +3297,163 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
                         </p>
                       </div>
 
-                      {/* QUALIFY TOP 8 BUTTON */}
-                      <button
-                        onClick={() => handleQualifyTop8(selectedComp.id)}
-                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-black text-xs flex items-center gap-1.5 transition-all shadow-lg self-start sm:self-auto"
-                      >
-                        <Crown className="w-4 h-4" />
-                        <span>Konfime & Kalifye Top 8 pou Vandredi</span>
-                      </button>
+                      {/* ACTION BUTTONS: QUALIFY TOP 8, DOWNLOAD RESULTS & RESET LEADERBOARD */}
+                      <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                        {/* Requirement 3: Bouton « Netwaye klasman » */}
+                        <button
+                          onClick={() => handleResetLeaderboard(selectedComp)}
+                          disabled={resettingLeaderboard || (selectedComp.scores?.length || 0) === 0}
+                          className="px-3.5 py-2.5 rounded-xl bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/40 font-black text-xs flex items-center gap-1.5 transition-all shadow-md disabled:opacity-40"
+                          title="Netwaye done klasman konpetisyon sa a sèlman lè konpetisyon an fini (avèk konfimasyon)"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span>{resettingLeaderboard ? 'Netwayaj...' : 'Netwaye klasman'}</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleDownloadCompetitionResults(selectedComp)}
+                          disabled={downloadingResultsId === selectedComp.id}
+                          className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-1.5 transition-all shadow-md disabled:opacity-50"
+                          title="Telechaje yon imaj (PNG) konplè sou telefòn ou ki gen tout rezilta ak klasman konpetisyon an"
+                        >
+                          <ImageIcon className="w-4 h-4 text-amber-300" />
+                          <span>{downloadingResultsId === selectedComp.id ? 'Jenerasyon Imaj...' : 'Télécharger Résultats (Imaj)'}</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleQualifyTop8(selectedComp.id)}
+                          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-black text-xs flex items-center gap-1.5 transition-all shadow-lg"
+                        >
+                          <Crown className="w-4 h-4" />
+                          <span>Konfime & Kalifye Top 8 pou Vandredi</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Requirement 4: Distribisyon & Peman Prim pou 1ye, 2yèm ak 3èm plas */}
+                    <div className="p-4 rounded-2xl bg-[#0B0F19] border border-amber-500/30 space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2">
+                        <div className="flex items-center gap-2 text-xs font-black text-amber-400">
+                          <Coins className="w-4 h-4 text-amber-400" />
+                          <span>Peman Ofisyèl Prim Konpetisyon (Voye Lajan sou Kont Jwè Gagnant yo)</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400">
+                          Peman yo antre dirèkteman sou balans kont jwè a ak tranzaksyon verifye.
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {/* 1st Place Payment */}
+                        {(() => {
+                          const isPaid = Boolean(selectedComp.prizesPaid?.first);
+                          const firstWinner = selectedComp.champion || (selectedComp.scores && selectedComp.scores[0]);
+                          return (
+                            <div className="p-3 rounded-xl bg-[#131B2E] border border-amber-500/40 flex flex-col justify-between gap-2">
+                              <div>
+                                <div className="text-[11px] font-black text-amber-400 flex items-center justify-between">
+                                  <span>🥇 1ye Plas: {selectedComp.prizes?.first || '50,000 HT'}</span>
+                                  {isPaid && (
+                                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/30 font-bold">
+                                      ✓ PEYE
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs font-bold text-white mt-1 truncate">
+                                  Gayan: {firstWinner?.fullName || 'Poko defini'}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handlePayCompetitionPrize(selectedComp, 'first')}
+                                disabled={isPaid || payingPrizePlace === 'first' || !firstWinner}
+                                className={`w-full py-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow ${
+                                  isPaid
+                                    ? 'bg-emerald-950/40 text-emerald-400 border border-emerald-500/40 cursor-not-allowed'
+                                    : 'bg-amber-500 hover:bg-amber-400 text-slate-950 active:scale-95'
+                                } disabled:opacity-50`}
+                              >
+                                <Coins className="w-3.5 h-3.5" />
+                                <span>
+                                  {payingPrizePlace === 'first' ? 'Ap peye...' : isPaid ? 'Pri 1ye deja peye' : 'Peye 1ye'}
+                                </span>
+                              </button>
+                            </div>
+                          );
+                        })()}
+
+                        {/* 2nd Place Payment */}
+                        {(() => {
+                          const isPaid = Boolean(selectedComp.prizesPaid?.second);
+                          const secondWinner = selectedComp.runnerUp || (selectedComp.scores && selectedComp.scores[1]);
+                          return (
+                            <div className="p-3 rounded-xl bg-[#131B2E] border border-slate-700 flex flex-col justify-between gap-2">
+                              <div>
+                                <div className="text-[11px] font-black text-slate-300 flex items-center justify-between">
+                                  <span>🥈 2yèm Plas: {selectedComp.prizes?.second || '25,000 HT'}</span>
+                                  {isPaid && (
+                                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/30 font-bold">
+                                      ✓ PEYE
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs font-bold text-white mt-1 truncate">
+                                  Gayan: {secondWinner?.fullName || 'Poko defini'}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handlePayCompetitionPrize(selectedComp, 'second')}
+                                disabled={isPaid || payingPrizePlace === 'second' || !secondWinner}
+                                className={`w-full py-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow ${
+                                  isPaid
+                                    ? 'bg-emerald-950/40 text-emerald-400 border border-emerald-500/40 cursor-not-allowed'
+                                    : 'bg-slate-200 hover:bg-white text-slate-950 active:scale-95'
+                                } disabled:opacity-50`}
+                              >
+                                <Coins className="w-3.5 h-3.5" />
+                                <span>
+                                  {payingPrizePlace === 'second' ? 'Ap peye...' : isPaid ? 'Pri 2èm deja peye' : 'Peye 2yèm'}
+                                </span>
+                              </button>
+                            </div>
+                          );
+                        })()}
+
+                        {/* 3rd Place Payment */}
+                        {(() => {
+                          const isPaid = Boolean(selectedComp.prizesPaid?.third);
+                          const thirdWinner = selectedComp.winners?.third ? { fullName: selectedComp.winners.third.name } : (selectedComp.scores && selectedComp.scores[2]);
+                          return (
+                            <div className="p-3 rounded-xl bg-[#131B2E] border border-amber-800/40 flex flex-col justify-between gap-2">
+                              <div>
+                                <div className="text-[11px] font-black text-amber-500 flex items-center justify-between">
+                                  <span>🥉 3yèm Plas: {selectedComp.prizes?.third || '10,000 HT'}</span>
+                                  {isPaid && (
+                                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/30 font-bold">
+                                      ✓ PEYE
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs font-bold text-white mt-1 truncate">
+                                  Gayan: {thirdWinner?.fullName || 'Poko defini'}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handlePayCompetitionPrize(selectedComp, 'third')}
+                                disabled={isPaid || payingPrizePlace === 'third' || !thirdWinner}
+                                className={`w-full py-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow ${
+                                  isPaid
+                                    ? 'bg-emerald-950/40 text-emerald-400 border border-emerald-500/40 cursor-not-allowed'
+                                    : 'bg-amber-700 hover:bg-amber-600 text-white active:scale-95'
+                                } disabled:opacity-50`}
+                              >
+                                <Coins className="w-3.5 h-3.5" />
+                                <span>
+                                  {payingPrizePlace === 'third' ? 'Ap peye...' : isPaid ? 'Pri 3èm deja peye' : 'Peye 3yèm'}
+                                </span>
+                              </button>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     </div>
 
                     {/* Participants Table */}
@@ -2552,14 +3618,27 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
                                 </div>
                               </div>
 
-                              {/* Action Button */}
-                              <button
-                                onClick={() => handleOpenMatchModal(m)}
-                                className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                                <span>Mete Rezilta / Korije Match</span>
-                              </button>
+                              {/* Action Buttons: Mete Rezilta & Efase Match */}
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleOpenMatchModal(m)}
+                                  className="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                  <span>Mete Rezilta / Korije</span>
+                                </button>
+
+                                {/* Requirement 2: Bouton « Efase » devan chak match VS */}
+                                <button
+                                  onClick={() => handleDeleteCompetitionMatch(selectedComp, m)}
+                                  disabled={deletingMatchId === m.id}
+                                  className="px-3 py-2 rounded-xl bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/40 font-bold text-xs flex items-center gap-1 transition-all disabled:opacity-50"
+                                  title="Efase match sa a (avèk konfimasyon)"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>{deletingMatchId === m.id ? '...' : 'Efase'}</span>
+                                </button>
+                              </div>
                             </div>
                           );
                         })}
@@ -2596,6 +3675,158 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
                       )}
                     </div>
                   )}
+
+                  {/* 6. TABLO ANREJISTREMAN PWEN CHAK JWÈ (REKÈT ADMIN #7) */}
+                  <div className="p-5 rounded-3xl bg-[#131B2E] border border-emerald-500/30 space-y-4 shadow-xl">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h4 className="text-sm font-black text-white flex items-center gap-2">
+                          <Trophy className="w-4 h-4 text-emerald-400" />
+                          <span>Istorik Ofisyèl Pwen Anrejistre pou Jwèt Konpetisyon yo</span>
+                          <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full font-bold">
+                            {scoreRecordsList.length} Anrejistreman
+                          </span>
+                        </h4>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Admin nan kapab verifye tout nòt jwè yo anrejistre, non yo, nimewo telefòn yo, jwèt yo jwe, nivo ak dat/lè egzak anrejistreman an.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const res = await api.getCompetitionScoreRecords();
+                            if (res.success && res.records) {
+                              setScoreRecordsList(res.records);
+                              notify('Lis anrejistreman pwen yo rafrechi !', 'success');
+                            }
+                          } catch (e: any) {
+                            notify(e.message || 'Erè rafrechisman.', 'error');
+                          }
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition flex items-center gap-1.5 border border-slate-700 self-start sm:self-auto"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        <span>Rafrechi Lis Pwen</span>
+                      </button>
+                    </div>
+
+                    {/* Filter bar for score records */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-400 mb-1">Filtre Konpetisyon:</label>
+                        <select
+                          value={scoreFilterComp}
+                          onChange={(e) => setScoreFilterComp(e.target.value)}
+                          className="w-full bg-[#0B0F19] border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white"
+                        >
+                          <option value="all">Tout Konpetisyon yo</option>
+                          {overview?.competitions.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-400 mb-1">Filtre Jwèt:</label>
+                        <select
+                          value={scoreFilterGame}
+                          onChange={(e) => setScoreFilterGame(e.target.value)}
+                          className="w-full bg-[#0B0F19] border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white"
+                        >
+                          <option value="all">Tout Jwèt yo</option>
+                          {overview?.games.map((g) => (
+                            <option key={g.id} value={g.id}>{g.title}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-400 mb-1">Chèche Jwè:</label>
+                        <input
+                          type="text"
+                          value={scoreSearchUser}
+                          onChange={(e) => setScoreSearchUser(e.target.value)}
+                          placeholder="Non jwè oswa nimewo telefòn..."
+                          className="w-full bg-[#0B0F19] border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Table of recorded score events */}
+                    {(() => {
+                      const filtered = scoreRecordsList.filter((r) => {
+                        if (scoreFilterComp !== 'all' && r.competitionId !== scoreFilterComp) return false;
+                        if (scoreFilterGame !== 'all' && r.gameId !== scoreFilterGame) return false;
+                        if (scoreSearchUser.trim()) {
+                          const q = scoreSearchUser.toLowerCase();
+                          const matchName = (r.userName || '').toLowerCase().includes(q);
+                          const matchPhone = (r.userPhone || '').includes(q);
+                          if (!matchName && !matchPhone) return false;
+                        }
+                        return true;
+                      });
+
+                      if (filtered.length === 0) {
+                        return (
+                          <div className="p-6 rounded-2xl bg-[#0B0F19] border border-slate-800 text-center text-xs text-slate-400">
+                            Pa gen okenn anrejistreman pwen ki koresponn ak filtè sa yo kounye a.
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="overflow-x-auto max-h-80 overflow-y-auto rounded-2xl border border-slate-800">
+                          <table className="w-full text-left text-xs">
+                            <thead className="sticky top-0 bg-[#0B0F19] border-b border-slate-800 text-slate-400">
+                              <tr>
+                                <th className="py-2 px-3">Dat & Lè</th>
+                                <th className="py-2 px-3">Konpetisyon</th>
+                                <th className="py-2 px-3">Jwè</th>
+                                <th className="py-2 px-3">Telefòn</th>
+                                <th className="py-2 px-3">Jwèt</th>
+                                <th className="py-2 px-3 text-center">Nivo</th>
+                                <th className="py-2 px-3 text-right font-black text-amber-400">Pwen Anrejistre</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/60 bg-[#0F172A]">
+                              {filtered.map((rec) => {
+                                const dt = new Date(rec.createdAt);
+                                const dateFormatted = isNaN(dt.getTime())
+                                  ? rec.createdAt
+                                  : dt.toLocaleDateString('fr-HT', { month: 'short', day: 'numeric' }) + ' ' + dt.toLocaleTimeString('fr-HT', { hour: '2-digit', minute: '2-digit' });
+
+                                return (
+                                  <tr key={rec.id} className="hover:bg-slate-800/50 transition">
+                                    <td className="py-2.5 px-3 text-slate-400 whitespace-nowrap">{dateFormatted}</td>
+                                    <td className="py-2.5 px-3 font-bold text-white whitespace-nowrap">
+                                      {rec.competitionName || rec.competitionId}
+                                    </td>
+                                    <td className="py-2.5 px-3 font-bold text-emerald-300 whitespace-nowrap">
+                                      {rec.userName || 'Jwè'}
+                                    </td>
+                                    <td className="py-2.5 px-3 text-slate-400 whitespace-nowrap">{rec.userPhone || '-'}</td>
+                                    <td className="py-2.5 px-3 text-slate-200 whitespace-nowrap">
+                                      🎮 {rec.gameTitle || rec.gameId}
+                                    </td>
+                                    <td className="py-2.5 px-3 text-center">
+                                      <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono text-[10px] font-bold">
+                                        N{rec.level}
+                                      </span>
+                                    </td>
+                                    <td className="py-2.5 px-3 text-right font-black text-amber-400 tabular-nums">
+                                      +{rec.score} pts
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      );
+                    })()}
+                  </div>
 
                   {/* CREATE NEW COMPETITION ACCORDION / FORM */}
                   <form onSubmit={handleCreateComp} className="p-5 rounded-3xl bg-[#131B2E] border border-slate-800 space-y-4">
@@ -2720,7 +3951,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
                         <input
                           type="number"
                           value={newCompVotePrice}
-                          onChange={(e) => setNewCompVotePrice(Number(e.target.value))}
+                          onChange={(e) => setNewCompVotePrice(e.target.value)}
                           className="w-full bg-[#0B0F19] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
                         />
                       </div>
@@ -3378,7 +4609,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
                       />
                     </div>
 
-                    {/* Video Live Preview */}
+                    {/* Video Preview */}
                     {newPostVideo && (
                       <div className="space-y-1">
                         <div className="text-[11px] text-slate-400 font-bold">Aperçu Videyo:</div>
@@ -3386,21 +4617,24 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
                           src={newPostVideo}
                           controls
                           className="w-full max-h-48 rounded-xl bg-black border border-slate-700"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLElement).style.display = 'none';
+                          }}
                         />
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* TikTok Link & Pin option */}
+                {/* Vidéo Master Link & Pin option */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">Lyen TikTok Administratè a</label>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">Lyen Vidéo Master Administratè a</label>
                     <input
                       type="url"
                       value={newPostTiktok}
                       onChange={(e) => setNewPostTiktok(e.target.value)}
-                      placeholder="https://tiktok.com/@kekechallenge"
+                      placeholder="https://masterplay.ht/videos/chalanj.mp4"
                       className="w-full bg-[#0B0F19] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
                     />
                   </div>
@@ -3453,7 +4687,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
                       <p className="text-slate-300 line-clamp-2">{post.description}</p>
                       {post.tiktokUrl && (
                         <div className="text-[11px] text-amber-400 font-bold">
-                          TikTok: {post.tiktokUrl}
+                          Vidéo Master: {post.tiktokUrl}
                         </div>
                       )}
                       <div className="text-[10px] text-slate-500">
@@ -3573,33 +4807,536 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
                   .filter(
                     (u) =>
                       u.fullName.toLowerCase().includes(userQuery.toLowerCase()) ||
-                      u.phoneNumber.includes(userQuery)
+                      u.phoneNumber.includes(userQuery) ||
+                      u.id.toLowerCase().includes(userQuery.toLowerCase()) ||
+                      (u.masterPlayId && u.masterPlayId.toLowerCase().includes(userQuery.toLowerCase()))
                   )
-                  .map((u) => (
-                    <div
-                      key={u.id}
-                      className="p-3.5 rounded-2xl bg-[#131B2E] border border-slate-800 flex items-center justify-between text-xs"
-                    >
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={u.profilePhoto}
-                          alt={u.fullName}
-                          className="w-9 h-9 rounded-full object-cover border border-slate-700"
-                        />
-                        <div>
-                          <div className="font-bold text-white text-sm">{u.fullName}</div>
-                          <div className="text-slate-400">{u.phoneNumber}</div>
+                  .map((u) => {
+                    const isVerifying = verifyingUserIds[u.id];
+                    const isVerified = Boolean(u.isVerifiedInDatabase);
+
+                    return (
+                      <div
+                        key={u.id}
+                        className="p-3.5 rounded-2xl bg-[#131B2E] border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={u.profilePhoto}
+                            alt={u.fullName}
+                            className="w-10 h-10 rounded-full object-cover border border-slate-700 shrink-0"
+                          />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-white text-sm">{u.fullName}</span>
+                              <VerifiedBadge
+                                verified={Boolean(u.verified || u.certificationStatus === 'sètifye' || u.role === 'ADMIN' || u.isAdmin)}
+                                size="xs"
+                              />
+                              {isVerified && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                  <Check className="w-3 h-3" />
+                                  <span>Verifye nan Bazdone</span>
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-slate-400 flex flex-wrap items-center gap-2 mt-0.5">
+                              <span>{u.phoneNumber}</span>
+                              <span className="text-slate-600">•</span>
+                              <span className="font-mono text-[10px] text-cyan-400 bg-cyan-500/10 px-1.5 py-0.2 rounded">
+                                {u.masterPlayId || u.id}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/80">
+                          <div className="text-left sm:text-right">
+                            <div className="font-black text-emerald-400 text-sm tabular-nums">
+                              {u.balance.toLocaleString()} HT
+                            </div>
+                            <div className="text-[10px] text-slate-500">Nivo {u.level}</div>
+                          </div>
+
+                          {/* Requirement 1: Bouton « Anrejistre » devan chak kont itilizatè */}
+                          <button
+                            onClick={() => handleVerifyUserInDB(u)}
+                            disabled={isVerifying}
+                            className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-md active:scale-95 disabled:opacity-50 ${
+                              isVerified
+                                ? 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40'
+                                : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                            }`}
+                            title="Anrejistre epi verifye kont sa a nan bazdone MASTER PLAY la yon fason pèmanan"
+                          >
+                            <Save className="w-3.5 h-3.5" />
+                            <span>{isVerifying ? 'Anrejistreman...' : isVerified ? 'Anrejistre Ankò' : 'Anrejistre'}</span>
+                          </button>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="font-black text-emerald-400 text-sm tabular-nums">
-                          {u.balance.toLocaleString()} HT
-                        </div>
-                        <div className="text-[10px] text-slate-500">Nivo {u.level}</div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
+            </div>
+          )}
+
+          {/* SECTION 6B: ACCOUNT CERTIFICATION */}
+          {activeSection === 'setifikasyon' && overview && (() => {
+            const uncertifiedUsers = overview.users.filter(
+              (u) => u.certificationStatus !== 'sètifye' && u.role !== 'ADMIN' && !u.isAdmin
+            );
+            const certifiedUsers = overview.users.filter(
+              (u) => u.certificationStatus === 'sètifye' || u.role === 'ADMIN' || u.isAdmin
+            );
+            const baseList =
+              certFilter === 'non_sètifye'
+                ? uncertifiedUsers
+                : certFilter === 'sètifye'
+                ? certifiedUsers
+                : overview.users;
+            const filteredUsers = baseList.filter((u) => {
+              const q = certSearchQuery.trim().toLowerCase();
+              if (!q) return true;
+              return (
+                u.fullName.toLowerCase().includes(q) ||
+                u.phoneNumber.toLowerCase().includes(q) ||
+                u.id.toLowerCase().includes(q) ||
+                (u.masterPlayId && u.masterPlayId.toLowerCase().includes(q))
+              );
+            });
+
+            return (
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-lg font-black text-white flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                    <span>Sètifikasyon Kont</span>
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Verifye epi valide kont itilizatè ki poko sètifye yo pou ba yo aksè konplè nan platfòm nan.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => setCertFilter('non_sètifye')}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-black transition-colors ${
+                      certFilter === 'non_sètifye'
+                        ? 'bg-amber-500 text-slate-950'
+                        : 'bg-[#131B2E] text-slate-300 border border-slate-800 hover:bg-slate-800'
+                    }`}
+                  >
+                    Poko Sètifye ({uncertifiedUsers.length})
+                  </button>
+                  <button
+                    onClick={() => setCertFilter('sètifye')}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-black transition-colors ${
+                      certFilter === 'sètifye'
+                        ? 'bg-emerald-500 text-slate-950'
+                        : 'bg-[#131B2E] text-slate-300 border border-slate-800 hover:bg-slate-800'
+                    }`}
+                  >
+                    Kont Sètifye ({certifiedUsers.length})
+                  </button>
+                  <button
+                    onClick={() => setCertFilter('tout')}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-black transition-colors ${
+                      certFilter === 'tout'
+                        ? 'bg-cyan-500 text-slate-950'
+                        : 'bg-[#131B2E] text-slate-300 border border-slate-800 hover:bg-slate-800'
+                    }`}
+                  >
+                    Tout Kont ({overview.users.length})
+                  </button>
+                </div>
+
+                <div className="relative max-w-sm">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <input
+                    type="text"
+                    value={certSearchQuery}
+                    onChange={(e) => setCertSearchQuery(e.target.value)}
+                    placeholder="Chèche pa non, telefòn oswa ID..."
+                    className="w-full bg-[#0B0F19] border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-white"
+                  />
+                </div>
+
+                {filteredUsers.length === 0 ? (
+                  <div className="p-8 rounded-2xl bg-[#131B2E] border border-slate-800 text-center text-xs text-slate-400">
+                    Pa gen okenn kont nan kategori sa a pou kounye a.
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {filteredUsers.map((u) => {
+                      const isCertified = u.certificationStatus === 'sètifye' || u.role === 'ADMIN' || u.isAdmin;
+                      const isCertifying = Boolean(certifyingUserIds[u.id]);
+                      return (
+                        <div
+                          key={u.id}
+                          className="p-4 rounded-2xl bg-[#131B2E] border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                        >
+                          <div className="flex items-start gap-3">
+                            <img
+                              src={u.profilePhoto}
+                              alt={u.fullName}
+                              className="w-11 h-11 rounded-full object-cover border border-slate-700 shrink-0"
+                            />
+                            <div className="space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-black text-white text-sm">{u.fullName}</span>
+                                <VerifiedBadge verified={isCertified} size="xs" />
+                                {isCertified ? (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                    <CheckCircle2 className="w-3 h-3" />
+                                    <span>Kont Sètifye</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                    <Clock className="w-3 h-3" />
+                                    <span>Non Sètifye</span>
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-slate-300 flex flex-wrap items-center gap-2">
+                                <span>📞 {u.phoneNumber}</span>
+                                {u.email && (
+                                  <>
+                                    <span className="text-slate-600">•</span>
+                                    <span>✉️ {u.email}</span>
+                                  </>
+                                )}
+                              </div>
+                              <div className="text-slate-400 flex flex-wrap items-center gap-2 text-[11px]">
+                                <span className="font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded">
+                                  ID: {u.masterPlayId || u.id}
+                                </span>
+                                <span className="text-slate-600">•</span>
+                                <span>
+                                  Kreye: {new Date(u.createdAt).toLocaleDateString('ht-HT', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/80">
+                            {isCertified ? (
+                              <div className="flex items-center gap-2">
+                                <span className="px-3 py-2 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-black text-xs inline-flex items-center gap-1.5">
+                                  <Check className="w-4 h-4" />
+                                  <span>Kont Sètifye</span>
+                                </span>
+                                {u.role !== 'ADMIN' && !u.isAdmin && (
+                                  <button
+                                    onClick={() => handleUncertifyUser(u)}
+                                    disabled={isCertifying}
+                                    className="px-3 py-2 rounded-xl bg-red-600/20 hover:bg-red-600/30 text-red-300 border border-red-500/30 font-bold text-xs transition-colors disabled:opacity-50"
+                                  >
+                                    {isCertifying ? '...' : 'Retire Sètifikasyon'}
+                                  </button>
+                                )}
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleCertifyUser(u)}
+                                disabled={isCertifying}
+                                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-600/20 transition-all active:scale-95 disabled:opacity-50"
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                                <span>{isCertifying ? 'Ap sètifye...' : 'Sètifye Kont'}</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* SECTION 6C: MEMWA / DATABASE SYSTEM */}
+          {activeSection === 'memwa_database' && (
+            <div className="space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-black text-white flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-cyan-400" />
+                    <span>MEMWA GLOBAL / DATABASE SYSTEM</span>
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Sous verite santral MASTER PLAY — pèsistans, evènman, synchronization, ak backup otomatik.
+                  </p>
+                </div>
+                <button
+                  onClick={async () => {
+                    setCreatingBackup(true);
+                    try {
+                      const res = await api.createAdminMemoryBackup(currentUser?.fullName || 'Administratè');
+                      if (res.success) {
+                        notify(`Backup v${res.snapshot?.version} kreye avèk siksè!`, 'success');
+                        await loadAdminData();
+                      } else {
+                        notify(res.error || 'Erè pandan backup la.', 'error');
+                      }
+                    } catch {
+                      notify('Erè koneksyon.', 'error');
+                    } finally {
+                      setCreatingBackup(false);
+                    }
+                  }}
+                  disabled={creatingBackup}
+                  className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg disabled:opacity-50"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>{creatingBackup ? 'Ap kreye backup...' : 'Kreye Backup Kounye a'}</span>
+                </button>
+              </div>
+
+              {/* Firebase Cloud & Firestore Migration Card */}
+              <div className="p-4 rounded-2xl bg-[#131B2E] border border-amber-500/30 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-black text-amber-300 flex items-center gap-2">
+                      <span>🔥 Firebase Cloud Backend & Firestore</span>
+                    </h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Pwojè: <span className="font-mono text-cyan-300">{firebaseConfig.projectId}</span> • Bucket:{' '}
+                      <span className="font-mono text-slate-300">{firebaseConfig.storageBucket}</span>
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      Firestore DB: <span className="font-mono text-slate-300">{firebaseConfig.firestoreDatabaseId}</span>
+                    </p>
+                    <p className="text-[11px] mt-1">
+                      Sesyon Firebase:{' '}
+                      {firebaseUser ? (
+                        <span className="text-emerald-400 font-bold">
+                          Konekte ({firebaseUser.email || firebaseUser.uid})
+                        </span>
+                      ) : (
+                        <span className="text-amber-300 font-bold">Pa konekte nan Google Admin</span>
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {(!firebaseUser || firebaseUser.email !== 'itsleprince70@gmail.com') && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const g = await signInWithFirebaseGoogle();
+                            notify(`Konekte sou Firebase kòm ${g.email}`, 'success');
+                          } catch (err: any) {
+                            notify(err?.message || 'Pa kapab konekte ak Google.', 'error');
+                          }
+                        }}
+                        className="px-3.5 py-2 rounded-xl bg-white text-slate-900 font-black text-xs hover:bg-slate-100"
+                      >
+                        Konekte Google Admin
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      disabled={cloudSyncing || !overview}
+                      onClick={async () => {
+                        if (!overview) return;
+                        setCloudSyncing(true);
+                        setCloudSyncSummary(null);
+                        try {
+                          const r = await syncAdminMigrationToFirestore({
+                            users: overview.users || [],
+                            competitions: overview.competitions || [],
+                            games: overview.games || [],
+                            posts: overview.posts || [],
+                          });
+                          if (r.error) {
+                            setCloudSyncSummary(r.error);
+                            notify(r.error, 'error');
+                          } else {
+                            const msg = `Senkronize nan Firestore: ${r.syncedUsers} itilizatè, ${r.syncedGames} jwèt, ${r.syncedCompetitions} konpetisyon, ${r.syncedPosts} piblikasyon.`;
+                            setCloudSyncSummary(msg);
+                            notify(msg, 'success');
+                          }
+                        } finally {
+                          setCloudSyncing(false);
+                        }
+                      }}
+                      className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs disabled:opacity-50"
+                    >
+                      {cloudSyncing ? 'Ap senkronize...' : 'Senkronize Done nan Firestore'}
+                    </button>
+                  </div>
+                </div>
+                {cloudSyncSummary && (
+                  <div className="p-2.5 rounded-xl bg-black/30 border border-slate-700 text-xs text-cyan-200">
+                    {cloudSyncSummary}
+                  </div>
+                )}
+              </div>
+
+              {memoryOverview && (
+                <>
+                  {/* Global Counters */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {[
+                      { label: 'Itilizatè', val: memoryOverview.stats.usersCount, color: 'text-white' },
+                      { label: 'Piblikasyon', val: memoryOverview.stats.publicationsCount, color: 'text-cyan-400' },
+                      { label: 'Vidéo', val: memoryOverview.stats.videosCount, color: 'text-rose-400' },
+                      { label: 'Konpetisyon', val: memoryOverview.stats.competitionsCount, color: 'text-amber-400' },
+                      { label: 'Scores', val: memoryOverview.stats.scoresCount, color: 'text-emerald-400' },
+                      { label: 'Tranzaksyon', val: memoryOverview.stats.transactionsCount, color: 'text-blue-400' },
+                      { label: 'Evènman Memwa', val: memoryOverview.stats.eventsCount, color: 'text-purple-400' },
+                      { label: 'Erè Sync', val: memoryOverview.stats.syncErrorsCount, color: memoryOverview.stats.syncErrorsCount > 0 ? 'text-red-400' : 'text-emerald-400' },
+                    ].map((card) => (
+                      <div key={card.label} className="p-3.5 rounded-2xl bg-[#131B2E] border border-slate-800">
+                        <div className="text-[11px] text-slate-400 font-bold">{card.label}</div>
+                        <div className={`text-xl font-black mt-1 tabular-nums ${card.color}`}>
+                          {card.val}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Backup Status & Snapshots */}
+                  <div className="p-4 rounded-2xl bg-[#131B2E] border border-slate-800 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <h3 className="text-sm font-black text-white">Estati Backup & Versioning</h3>
+                        <p className="text-[11px] text-slate-400">
+                          Schema v{memoryOverview.backupStatus.schemaVersion} • Done v{memoryOverview.backupStatus.dataVersion} • Dènye mizajou:{' '}
+                          {new Date(memoryOverview.backupStatus.lastUpdatedAt).toLocaleString('ht-HT')}
+                        </p>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[11px] font-black">
+                        Pwoteksyon Aktif
+                      </span>
+                    </div>
+
+                    {memoryOverview.backupStatus.snapshots?.length > 0 ? (
+                      <div className="space-y-2 max-h-56 overflow-y-auto">
+                        {memoryOverview.backupStatus.snapshots.map((snap: any) => (
+                          <div key={snap.fileName} className="p-2.5 rounded-xl bg-[#0B0F19] border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                            <div>
+                              <div className="font-mono text-cyan-300 font-bold">{snap.fileName}</div>
+                              <div className="text-[10px] text-slate-400">
+                                v{snap.version} • {snap.usersCount} itilizatè • {snap.postsCount} piblikasyon • Checksum: {snap.checksum}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => setRestoreConfirmFile(snap.fileName)}
+                              className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[11px] font-bold"
+                            >
+                              Restore Backup
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400">Poko gen snapshot manyèl. Klike « Kreye Backup Kounye a » pou sove premye snapshot la.</p>
+                    )}
+                  </div>
+
+                  {/* Needs Verification Summary */}
+                  <div className="p-4 rounded-2xl bg-[#131B2E] border border-slate-800 flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-black text-white">
+                        Kont ki Bezwen Verifikasyon ({memoryOverview.stats.needsVerificationCount})
+                      </h3>
+                      <p className="text-[11px] text-slate-400">
+                        Kont itilizatè ki poko sètifye nan bazdone a.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setActiveSection('setifikasyon')}
+                      className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs"
+                    >
+                      Ouvri Sètifikasyon Kont
+                    </button>
+                  </div>
+
+                  {/* Recent Events Log */}
+                  <div className="p-4 rounded-2xl bg-[#131B2E] border border-slate-800 space-y-3">
+                    <h3 className="text-sm font-black text-white">Istorik Evènman Memwa Global (Resan)</h3>
+                    <div className="space-y-2 max-h-72 overflow-y-auto">
+                      {memoryOverview.recentEvents.map((evt: any) => (
+                        <div key={evt.eventId} className="p-2.5 rounded-xl bg-[#0B0F19] border border-slate-800/80 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                          <div>
+                            <span className="font-black text-cyan-400 mr-2">{evt.actionType}</span>
+                            <span className="text-slate-300">{evt.pageOrFeature}</span>
+                            <div className="text-[10px] text-slate-500 font-mono">
+                              ID: {evt.eventId} • User: {evt.userId}
+                            </div>
+                          </div>
+                          <div className="text-[10px] text-slate-400 shrink-0">
+                            {new Date(evt.dateTime).toLocaleString('ht-HT')}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Sync Errors */}
+                  {memoryOverview.syncErrors?.length > 0 && (
+                    <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/30 space-y-2">
+                      <h3 className="text-sm font-black text-red-300">Erè Synchronization</h3>
+                      {memoryOverview.syncErrors.map((err: any) => (
+                        <div key={err.id} className="text-xs text-red-200 bg-black/30 p-2 rounded-lg">
+                          <strong>{err.actionType}</strong>: {err.error} ({new Date(err.timestamp).toLocaleString('ht-HT')})
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Restore Confirmation Modal */}
+              {restoreConfirmFile && (
+                <div className="fixed inset-0 z-[80] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                  <div className="w-full max-w-sm bg-[#0F172A] border border-amber-500/40 rounded-3xl p-6 space-y-4 text-center">
+                    <h3 className="text-base font-black text-white">Konfime Restore Backup</h3>
+                    <p className="text-xs text-slate-300">
+                      Èske ou sèten ou vle restore bazdone a depi <span className="font-mono text-amber-300">{restoreConfirmFile}</span>? Aksyon sa a ap anrejistre nan audit log la.
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setRestoreConfirmFile(null)}
+                        disabled={restoringBackup}
+                        className="flex-1 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold"
+                      >
+                        Anile
+                      </button>
+                      <button
+                        type="button"
+                        disabled={restoringBackup}
+                        onClick={async () => {
+                          setRestoringBackup(true);
+                          try {
+                            const r = await api.restoreAdminMemoryBackup(restoreConfirmFile, currentUser?.fullName || 'Administratè');
+                            if (r.success) {
+                              notify(r.message || 'Bazdone restore avèk siksè!', 'success');
+                              setRestoreConfirmFile(null);
+                              await loadAdminData();
+                              onDataChanged();
+                            } else {
+                              notify(r.error || 'Erè pandan restore.', 'error');
+                            }
+                          } catch {
+                            notify('Erè koneksyon.', 'error');
+                          } finally {
+                            setRestoringBackup(false);
+                          }
+                        }}
+                        className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black"
+                      >
+                        {restoringBackup ? 'Ap restore...' : 'Wi, Restore'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -3652,6 +5389,351 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
                   {sendingNotif ? 'N ap voye...' : 'Voye bay tout itilizatè yo'}
                 </button>
               </form>
+            </div>
+          )}
+
+          {/* SECTION: MONETIZATION MANAGEMENT */}
+          {activeSection === 'monetizasyon' && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-black text-white flex items-center gap-2">
+                    <Sparkles className="w-6 h-6 text-amber-400" />
+                    <span>Jesyon Monetizasyon Kreyatè</span>
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Konfigire tarif revni, kontwole kreyatè monetize yo epi jere peman kès la.
+                  </p>
+                </div>
+                <button
+                  onClick={loadAdminData}
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 flex items-center gap-1.5"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Rafrechi</span>
+                </button>
+              </div>
+
+              {monetizationMsg && (
+                <div className="p-3 rounded-xl bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30">
+                  {monetizationMsg}
+                </div>
+              )}
+
+              {/* Stats overview */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-4 rounded-2xl bg-[#131B2E] border border-slate-800">
+                  <div className="text-[10px] uppercase font-bold text-slate-400">Total Kreyatè Elijib</div>
+                  <div className="text-2xl font-black text-amber-400 mt-1">
+                    {monetizationData?.totalCreatorsCount || 0}
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-[#131B2E] border border-slate-800">
+                  <div className="text-[10px] uppercase font-bold text-slate-400">Kreyatè Monetize Aktif</div>
+                  <div className="text-2xl font-black text-emerald-400 mt-1">
+                    {monetizationData?.totalMonetizedCount || 0}
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-[#131B2E] border border-slate-800">
+                  <div className="text-[10px] uppercase font-bold text-slate-400">Frè Aktivasyon</div>
+                  <div className="text-2xl font-black text-white mt-1">
+                    {monetizationData?.config?.activationFee || 250} HT
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-[#131B2E] border border-slate-800">
+                  <div className="text-[10px] uppercase font-bold text-slate-400">Tarif 1k Likes</div>
+                  <div className="text-2xl font-black text-blue-400 mt-1">
+                    {monetizationData?.config?.earningsPer1000Likes || 500} G
+                  </div>
+                </div>
+              </div>
+
+              {/* Configuration Form */}
+              <form onSubmit={handleSaveMonetizationConfig} className="p-5 rounded-3xl bg-[#131B2E] border border-slate-800 space-y-4">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Settings className="w-4 h-4 text-amber-400" />
+                  <span>Konfigirasyon Tarif & Règ Monetizasyon</span>
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">Frè Aktivasyon (HT)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      required
+                      value={monetizationActivationFeeInput}
+                      onChange={(e) => setMonetizationActivationFeeInput(e.target.value)}
+                      className="w-full bg-[#0B0F19] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">Revni / 1,000 Likes (G)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      required
+                      value={monetization1kLikesInput}
+                      onChange={(e) => setMonetization1kLikesInput(e.target.value)}
+                      className="w-full bg-[#0B0F19] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">Bonis 1,000 Abòne (G)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      required
+                      value={monetizationMilestoneInput}
+                      onChange={(e) => setMonetizationMilestoneInput(e.target.value)}
+                      className="w-full bg-[#0B0F19] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">Minimòm Abòne Elijibilite</label>
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      value={monetizationMinFollowersInput}
+                      onChange={(e) => setMonetizationMinFollowersInput(e.target.value)}
+                      className="w-full bg-[#0B0F19] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={savingMonetizationConfig}
+                  className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs transition-all shadow-md active:scale-95 disabled:opacity-50"
+                >
+                  {savingMonetizationConfig ? 'N ap sove...' : 'Sove Konfigirasyon Monetizasyon'}
+                </button>
+              </form>
+
+              {/* Creators Table */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-bold text-white">
+                  Lis Kreyatè Elijib & Monetize ({monetizationData?.creators?.length || 0})
+                </h3>
+
+                {(!monetizationData?.creators || monetizationData.creators.length === 0) ? (
+                  <div className="p-8 rounded-2xl bg-[#131B2E] border border-slate-800 text-center text-xs text-slate-400">
+                    Poko gen kreyatè ki rive nan 1,000 abòne oswa ki mande monetizasyon.
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {monetizationData.creators.map((c: any) => (
+                      <div
+                        key={c.id}
+                        className="p-4 rounded-2xl bg-[#131B2E] border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                      >
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={c.profilePhoto || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}
+                            alt={c.fullName}
+                            className="w-12 h-12 rounded-full object-cover border border-slate-700 shrink-0"
+                          />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-white text-sm">{c.fullName}</span>
+                              <span
+                                className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${
+                                  c.isMonetized
+                                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                                    : 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                                }`}
+                              >
+                                {c.isMonetized ? '⭐ MONETIZE' : 'ELIJIB (POKO AKTIF)'}
+                              </span>
+                            </div>
+                            <div className="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
+                              <span>{c.phoneNumber}</span>
+                              <span>•</span>
+                              <span className="font-mono text-[10px] text-amber-400">ID: {c.id}</span>
+                            </div>
+                            <div className="text-[11px] text-slate-400 flex items-center gap-3 mt-1">
+                              <span>👥 <b>{(c.followersCount || 0).toLocaleString()}</b> abòne</span>
+                              <span>❤️ <b>{(c.monetizedLikesCount || 0).toLocaleString()}</b> likes</span>
+                              {c.followerMilestonePaid && <span className="text-emerald-400 font-bold">✓ Bonis 1k Abòne</span>}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Financial stats & Actions */}
+                        <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800">
+                          <div className="text-left sm:text-right">
+                            <div className="text-[10px] text-slate-400">Revni Disponib:</div>
+                            <div className="text-base font-black text-emerald-400 tabular-nums">
+                              {(c.availableEarnings || 0).toLocaleString()} HT
+                            </div>
+                            <div className="text-[10px] text-slate-500">
+                              Total: {(c.totalEarnings || 0).toLocaleString()} HT • Peye: {(c.paidEarnings || 0).toLocaleString()} HT
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleCreatorStatus(c.id, c.monetizationStatus, c.isMonetized)}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                                c.isMonetized
+                                  ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30'
+                                  : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                              }`}
+                            >
+                              {c.isMonetized ? 'Sispann' : 'Aktive'}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPayoutModalCreator(c);
+                                setPayoutAmountInput(String(c.availableEarnings || 0));
+                                setPayoutPinInput('');
+                              }}
+                              disabled={!c.availableEarnings || c.availableEarnings <= 0}
+                              className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition-all disabled:opacity-40"
+                            >
+                              Peye Kreyatè
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* SECTION: ALGORITHM INTELLIGENCE & DECISION SYSTEM */}
+          {activeSection === 'algorithm_intelligence' && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-black text-white flex items-center gap-2">
+                    <Shield className="w-6 h-6 text-emerald-400" />
+                    <span>🧠 Sistèm Algorithm Master & Entèlijans Desizyon</span>
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Siveyans otomatik kont doublon, spam likes, anomalie vòt ak analiz sekirite platfòm nan.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowCleanModal(true)}
+                    className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-xs font-black text-white flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Netwaye Fo Kont & Fo Abòne</span>
+                  </button>
+                  <button
+                    onClick={loadAdminData}
+                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300"
+                    title="Rafrechi analiz"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Health integrity score */}
+              <div className="p-5 rounded-3xl bg-gradient-to-r from-[#131B2E] via-slate-900 to-[#131B2E] border border-emerald-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-black text-2xl">
+                    {algorithmData?.healthScore || 100}%
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Nivo Entegrite & Sante Bazdone a</h3>
+                    <p className="text-xs text-slate-400">
+                      {(algorithmData?.healthScore || 100) >= 90
+                        ? 'Sistèm nan estab, tout relasyon itilizatè ak tranzaksyon yo verifye.'
+                        : 'Atansyon: kèk anomalie detekte ki mande atansyon administratè a.'}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs text-emerald-400 font-bold bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                    Algorithme Aktif 24/7
+                  </span>
+                </div>
+              </div>
+
+              {/* Detected Anomalies */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-400" />
+                  <span>Anomali Detekte pa Algorithme la ({algorithmData?.anomalies?.length || 0})</span>
+                </h3>
+
+                {(!algorithmData?.anomalies || algorithmData.anomalies.length === 0) ? (
+                  <div className="p-6 rounded-2xl bg-[#131B2E] border border-slate-800 text-center text-xs text-emerald-400 font-semibold">
+                    ✓ Okenn anomalie oswa doublon pa detekte nan sistèm nan. Tout bagay nòmal !
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {algorithmData.anomalies.map((a: any) => (
+                      <div
+                        key={a.id}
+                        className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-start justify-between gap-3 text-xs"
+                      >
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-rose-400 uppercase text-[10px] bg-rose-500/20 px-2 py-0.5 rounded-full">
+                              {a.severity}
+                            </span>
+                            <span className="text-white font-semibold">{a.description}</span>
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            Detekte: {new Date(a.timestamp).toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* AI Strategic Recommendations */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-blue-400" />
+                  <span>Rekòmandasyon Entèlijan pou Administratè a ({algorithmData?.recommendations?.length || 0})</span>
+                </h3>
+
+                {(!algorithmData?.recommendations || algorithmData.recommendations.length === 0) ? (
+                  <div className="p-6 rounded-2xl bg-[#131B2E] border border-slate-800 text-center text-xs text-slate-400">
+                    Okenn aksyon ijan pa nesesè kounye a.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {algorithmData.recommendations.map((rec: any) => (
+                      <div
+                        key={rec.id}
+                        className="p-4 rounded-2xl bg-[#131B2E] border border-slate-800 flex flex-col justify-between gap-3 text-xs"
+                      >
+                        <div className="space-y-1">
+                          <div className="font-bold text-white text-sm">{rec.title}</div>
+                          <p className="text-slate-300">{rec.description}</p>
+                        </div>
+                        {rec.actionLabel && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (rec.category === 'monetization') setActiveSection('monetizasyon');
+                              else if (rec.category === 'finance') setActiveSection('tranzaksyon');
+                            }}
+                            className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold rounded-xl text-xs transition-colors text-center"
+                          >
+                            {rec.actionLabel} →
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -4105,6 +6187,139 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onClose, onDataChanged
                   className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs shadow-md"
                 >
                   Ajoute nan Boutik
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CREATOR PAYOUT MODAL */}
+      {payoutModalCreator && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
+          <div className="w-full max-w-md bg-[#0F172A] border border-amber-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+              <h3 className="text-base font-black text-white flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-amber-400" />
+                <span>Peman Revni Kreyatè</span>
+              </h3>
+              <button onClick={() => setPayoutModalCreator(null)} className="p-1 text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3 bg-[#0B0F19] rounded-2xl border border-slate-800 flex items-center gap-3">
+              <img
+                src={payoutModalCreator.profilePhoto || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}
+                alt={payoutModalCreator.fullName}
+                className="w-12 h-12 rounded-full object-cover border border-slate-700"
+              />
+              <div className="text-xs">
+                <div className="font-bold text-white text-sm">{payoutModalCreator.fullName}</div>
+                <div className="text-slate-400">{payoutModalCreator.phoneNumber} • ID: {payoutModalCreator.id}</div>
+                <div className="text-emerald-400 font-bold mt-0.5">
+                  Revni Disponib: {(payoutModalCreator.availableEarnings || 0).toLocaleString()} HT
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleExecutePayout} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Montan Peman (HT)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max={payoutModalCreator.availableEarnings || 0}
+                  required
+                  value={payoutAmountInput}
+                  onChange={(e) => setPayoutAmountInput(e.target.value)}
+                  className="w-full bg-[#0B0F19] border border-slate-700 rounded-xl px-3 py-2 text-sm font-bold text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Kòd PIN Administratè (Sekirite)</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Tape PIN admin ou..."
+                  value={payoutPinInput}
+                  onChange={(e) => setPayoutPinInput(e.target.value)}
+                  className="w-full bg-[#0B0F19] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPayoutModalCreator(null)}
+                  className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold"
+                >
+                  Anile
+                </button>
+                <button
+                  type="submit"
+                  disabled={payoutLoading}
+                  className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs shadow-md disabled:opacity-50"
+                >
+                  {payoutLoading ? 'N ap trete...' : 'Konfime Peman an'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CLEAN FAKE ACCOUNTS MODAL */}
+      {showCleanModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
+          <div className="w-full max-w-md bg-[#0F172A] border border-rose-500/40 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+              <h3 className="text-base font-black text-white flex items-center gap-2">
+                <Trash2 className="w-5 h-5 text-rose-400" />
+                <span>Netwaye Fo Kont & Fo Abòne</span>
+              </h3>
+              <button onClick={() => setShowCleanModal(false)} className="p-1 text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="text-xs text-slate-300 bg-rose-500/10 border border-rose-500/30 p-3.5 rounded-2xl space-y-2">
+              <div className="font-bold text-rose-400">Avètisman Sekirite:</div>
+              <p>
+                Aksyon sa a pral netwaye tout kont tès/fo kont ki pa otantik nan bazdone a, retire relasyon fo abòne yo, epi resenkronize kontè abòne kreyatè yo kòrèkteman.
+              </p>
+            </div>
+
+            <form onSubmit={handleRunCleanFakeAccounts} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  Antre Kòd PIN Admin pou Konfime
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Tape PIN admin..."
+                  value={cleanFakeAccountsPin}
+                  onChange={(e) => setCleanFakeAccountsPin(e.target.value)}
+                  className="w-full bg-[#0B0F19] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCleanModal(false)}
+                  className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold"
+                >
+                  Anile
+                </button>
+                <button
+                  type="submit"
+                  disabled={cleaningFakeAccounts}
+                  className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-xl text-xs shadow-md disabled:opacity-50"
+                >
+                  {cleaningFakeAccounts ? 'N ap netwaye...' : 'Netwaye Kounye a'}
                 </button>
               </div>
             </form>

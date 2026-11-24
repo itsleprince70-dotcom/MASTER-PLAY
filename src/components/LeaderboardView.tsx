@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Competition, Game, User } from '../types';
 import { Trophy, Medal, Crown, Star, Flame, Award, ChevronRight, Heart, Gift, Users, Shield } from 'lucide-react';
 import { SubscribeButton } from './SubscribeButton';
+import { VerifiedBadge } from './VerifiedBadge';
 
 interface LeaderboardViewProps {
   competitions: Competition[];
@@ -132,6 +133,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                 />
                 <div className="flex items-center justify-center gap-1.5">
                   <h4 className="text-sm font-bold text-white truncate max-w-[130px]">{generalRanking[1].fullName}</h4>
+                  <VerifiedBadge verified={generalRanking[1].verified} size="xs" />
                   {generalRanking[1].userId !== currentUser?.id && (
                     <SubscribeButton
                       targetUserId={generalRanking[1].userId}
@@ -157,6 +159,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                 />
                 <div className="flex items-center justify-center gap-1.5">
                   <h4 className="text-base font-black text-white truncate max-w-[150px]">{generalRanking[0].fullName}</h4>
+                  <VerifiedBadge verified={generalRanking[0].verified} size="sm" />
                   {generalRanking[0].userId !== currentUser?.id && (
                     <SubscribeButton
                       targetUserId={generalRanking[0].userId}
@@ -182,6 +185,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                 />
                 <div className="flex items-center justify-center gap-1.5">
                   <h4 className="text-sm font-bold text-white truncate max-w-[130px]">{generalRanking[2].fullName}</h4>
+                  <VerifiedBadge verified={generalRanking[2].verified} size="xs" />
                   {generalRanking[2].userId !== currentUser?.id && (
                     <SubscribeButton
                       targetUserId={generalRanking[2].userId}
@@ -236,6 +240,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                               <span className="font-bold text-white block">
                                 {p.fullName} {isUser && '(Ou menm)'}
                               </span>
+                              <VerifiedBadge verified={p.verified} size="xs" />
                               {!isUser && (
                                 <SubscribeButton
                                   targetUserId={p.userId}

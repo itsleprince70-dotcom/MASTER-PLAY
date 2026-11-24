@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { User } from '../types';
 import { api } from '../services/api';
 import { Plus, Check, Loader2 } from 'lucide-react';
+import { notify } from './Toast';
 
 interface SubscribeButtonProps {
   targetUserId: string;
@@ -61,7 +62,7 @@ export const SubscribeButton: React.FC<SubscribeButtonProps> = ({
           onSubscriptionChange(targetUserId, res.isSubscribed, res.followersCount || 0);
         }
       } else if (res.error) {
-        alert(res.error);
+        notify(res.error, 'error');
       }
     } catch (err: any) {
       console.error('Subscription error:', err);
